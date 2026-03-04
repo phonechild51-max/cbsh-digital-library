@@ -22,7 +22,14 @@ const ThemeToggle = (() => {
     '--border-card':      '#E8DFD2',
     '--border-input':     '#D4C8B8',
     '--border-divider':   '#EDE5DA',
-    '--border-subtle':    '#F0EBE5'
+    '--border-subtle':    '#F0EBE5',
+    '--accent-amber-glow':   'rgba(212, 146, 42, 0.2)',
+    '--accent-amber-subtle': 'rgba(212, 146, 42, 0.1)',
+    '--accent-blue-subtle':  'rgba(42, 109, 212, 0.1)',
+    '--accent-amber-pressed': '#c48825',
+    '--success-subtle':      'rgba(16, 185, 129, 0.1)',
+    '--warning-subtle':      'rgba(245, 158, 11, 0.1)',
+    '--danger-subtle':       'rgba(239, 68, 68, 0.1)'
   };
 
   function getTheme() {

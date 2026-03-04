@@ -643,7 +643,7 @@ a:hover {
   font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--text-muted);
+  color: var(--accent-amber);
   padding: 1rem 0.875rem 0.375rem;
   font-weight: 600;
 }
@@ -908,6 +908,7 @@ a:hover {
   margin-bottom: 0.25rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1340,3 +1341,372 @@ a:hover {
 .font-mono {
   font-family: var(--font-mono) !important;
 }
+
+/* ══════════════════════════════════════════════════════════
+   LIGHT MODE OVERRIDES
+   These target elements that use !important or hardcoded
+   dark values that CSS variable swaps alone can't reach.
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Base overrides ──────────────────────────────────── */
+.theme-light body,
+body.theme-light {
+  color-scheme: light;
+}
+
+/* ── Buttons ── Primary (amber text on light bg stays dark) */
+.theme-light .btn-primary {
+  color: #1A1410 !important;
+}
+.theme-light .btn-primary:hover,
+.theme-light .btn-primary:focus {
+  color: #1A1410 !important;
+}
+
+/* ── Buttons ── Danger, Info, Success text stays readable */
+.theme-light .btn-danger:hover {
+  color: #fff !important;
+}
+.theme-light .btn-info:hover {
+  color: #fff !important;
+}
+.theme-light .btn-success:hover {
+  color: #fff !important;
+}
+
+/* ── Cards ────────────────────────────────────────────── */
+.theme-light .card {
+  background: var(--bg-card) !important;
+  border-color: var(--border-card) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.theme-light .card:hover {
+  background: var(--bg-card-hover) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.theme-light .card-header {
+  background: var(--bg-card) !important;
+  border-bottom-color: var(--border-divider) !important;
+  color: var(--text-heading) !important;
+}
+
+/* ── Forms ─────────────────────────────────────────────── */
+.theme-light .form-control,
+.theme-light .form-select {
+  background: var(--bg-input) !important;
+  border-color: var(--border-input) !important;
+  color: var(--text-primary) !important;
+}
+.theme-light .form-control:focus,
+.theme-light .form-select:focus {
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 3px rgba(212, 146, 42, 0.15) !important;
+}
+.theme-light .form-control::placeholder {
+  color: var(--text-disabled) !important;
+}
+.theme-light .input-group-text {
+  background: var(--bg-input) !important;
+  border-color: var(--border-input) !important;
+  color: var(--text-secondary) !important;
+}
+.theme-light .form-label {
+  color: var(--text-secondary) !important;
+}
+
+/* ── Tables ────────────────────────────────────────────── */
+.theme-light .table {
+  color: var(--text-primary) !important;
+  --bs-table-bg: var(--bg-card);
+  --bs-table-hover-bg: var(--bg-card-hover);
+}
+.theme-light .table thead th {
+  background: var(--bg-input) !important;
+  color: var(--text-heading) !important;
+  border-bottom-color: var(--border-divider) !important;
+}
+.theme-light .table tbody td {
+  border-color: var(--border-divider) !important;
+  color: var(--text-primary) !important;
+}
+.theme-light .table tbody tr:hover {
+  background: var(--bg-card-hover) !important;
+}
+
+/* ── Sidebar ───────────────────────────────────────────── */
+.theme-light .cbsh-sidebar {
+  background: var(--bg-sidebar);
+  border-right-color: var(--border-divider);
+}
+.theme-light .cbsh-sidebar .sidebar-brand-text {
+  color: var(--text-heading);
+}
+.theme-light .cbsh-sidebar .sidebar-brand-sub {
+  color: var(--text-disabled);
+}
+.theme-light .cbsh-sidebar .nav-link {
+  color: var(--text-secondary) !important;
+}
+.theme-light .cbsh-sidebar .nav-link:hover {
+  background: var(--accent-amber-subtle) !important;
+  color: var(--accent-amber) !important;
+}
+.theme-light .cbsh-sidebar .nav-link.active {
+  background: var(--accent-blue-subtle) !important;
+  color: var(--accent-blue) !important;
+}
+.theme-light .cbsh-sidebar .sidebar-footer {
+  border-top-color: var(--border-divider);
+}
+
+/* ── Topbar ────────────────────────────────────────────── */
+.theme-light .cbsh-topbar {
+  background: var(--bg-sidebar);
+  border-bottom-color: var(--border-divider);
+}
+.theme-light .cbsh-topbar .page-title {
+  color: var(--text-heading);
+}
+.theme-light .cbsh-topbar .topbar-icon-btn {
+  border-color: var(--border-input);
+  color: var(--text-secondary);
+}
+.theme-light .cbsh-topbar .topbar-icon-btn:hover {
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+
+/* ── Stat Cards ────────────────────────────────────────── */
+.theme-light .stat-card {
+  background: var(--bg-card);
+  border-color: var(--border-card);
+}
+.theme-light .stat-card:hover {
+  background: var(--bg-card-hover);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.theme-light .stat-card .stat-value {
+  color: var(--text-primary);
+}
+.theme-light .stat-card .stat-label {
+  color: var(--text-secondary);
+}
+
+/* ── Material Cards ────────────────────────────────────── */
+.theme-light .material-card {
+  background: var(--bg-card);
+  border-color: var(--border-card);
+}
+.theme-light .material-card:hover {
+  background: var(--bg-card-hover);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.theme-light .material-card .material-thumb {
+  background: var(--bg-input);
+}
+.theme-light .material-card .material-title {
+  color: var(--text-primary);
+}
+.theme-light .material-card .material-meta {
+  color: var(--text-disabled);
+}
+
+/* ── Quiz Cards ────────────────────────────────────────── */
+.theme-light .quiz-card {
+  background: var(--bg-card);
+  border-color: var(--border-card);
+}
+.theme-light .quiz-card:hover {
+  background: var(--bg-card-hover);
+}
+.theme-light .quiz-card .quiz-title {
+  color: var(--text-primary);
+}
+
+/* ── Modals ────────────────────────────────────────────── */
+.theme-light .modal-content {
+  background: var(--bg-card) !important;
+  border-color: var(--border-card) !important;
+  color: var(--text-primary);
+}
+.theme-light .modal-header {
+  border-bottom-color: var(--border-divider) !important;
+}
+.theme-light .modal-footer {
+  border-top-color: var(--border-divider) !important;
+}
+.theme-light .modal-title {
+  color: var(--text-heading);
+}
+.theme-light .btn-close {
+  filter: none;
+}
+
+/* ── Dropdowns ─────────────────────────────────────────── */
+.theme-light .dropdown-menu {
+  background: var(--bg-card) !important;
+  border-color: var(--border-card) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+.theme-light .dropdown-item {
+  color: var(--text-secondary) !important;
+}
+.theme-light .dropdown-item:hover,
+.theme-light .dropdown-item:focus {
+  background: var(--accent-amber-subtle) !important;
+  color: var(--accent-amber) !important;
+}
+
+/* ── Badges ────────────────────────────────────────────── */
+.theme-light .badge.bg-secondary {
+  background: rgba(92, 74, 53, 0.1) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* ── SweetAlert2 ───────────────────────────────────────── */
+.theme-light .swal2-popup {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-card) !important;
+}
+.theme-light .swal2-title {
+  color: var(--text-heading) !important;
+}
+.theme-light .swal2-html-container {
+  color: var(--text-secondary) !important;
+}
+.theme-light .swal2-confirm {
+  color: #1A1410 !important;
+}
+.theme-light .swal2-input {
+  background: var(--bg-input) !important;
+  border-color: var(--border-input) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ── DataTables ────────────────────────────────────────── */
+.theme-light .dataTables_wrapper {
+  color: var(--text-primary);
+}
+.theme-light .dataTables_wrapper .dataTables_filter input {
+  background: var(--bg-input) !important;
+  border-color: var(--border-input) !important;
+  color: var(--text-primary) !important;
+}
+.theme-light .dataTables_wrapper .dataTables_length select {
+  background: var(--bg-input) !important;
+  border-color: var(--border-input) !important;
+  color: var(--text-primary) !important;
+}
+.theme-light .dataTables_wrapper .dataTables_info {
+  color: var(--text-secondary) !important;
+}
+.theme-light .dataTables_wrapper .dataTables_paginate .paginate_button {
+  background: var(--bg-card) !important;
+  border-color: var(--border-card) !important;
+  color: var(--text-secondary) !important;
+}
+.theme-light .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+  background: var(--accent-amber-subtle) !important;
+  color: var(--accent-amber) !important;
+  border-color: var(--accent-amber) !important;
+}
+.theme-light .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: var(--accent-amber) !important;
+  color: #1A1410 !important;
+  border-color: var(--accent-amber) !important;
+}
+
+/* ── Pagination ────────────────────────────────────────── */
+.theme-light .page-link {
+  background: var(--bg-card) !important;
+  border-color: var(--border-card) !important;
+  color: var(--text-secondary) !important;
+}
+.theme-light .page-item.active .page-link {
+  background: var(--accent-amber) !important;
+  border-color: var(--accent-amber) !important;
+  color: #1A1410 !important;
+}
+
+/* ── Text / Nav ────────────────────────────────────────── */
+.theme-light .nav-link {
+  color: var(--text-secondary) !important;
+}
+.theme-light .nav-link:hover {
+  color: var(--accent-amber) !important;
+}
+.theme-light .nav-link.active {
+  color: var(--accent-amber) !important;
+}
+.theme-light .nav-tabs .nav-link.active {
+  color: var(--accent-amber) !important;
+}
+
+/* ── Scrollbar light ───────────────────────────────────── */
+.theme-light ::-webkit-scrollbar-track {
+  background: var(--bg-app);
+}
+.theme-light ::-webkit-scrollbar-thumb {
+  background: var(--border-input);
+}
+.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-amber);
+}
+
+/* ── Loading overlay ───────────────────────────────────── */
+.theme-light .loading-overlay {
+  background: rgba(245, 240, 235, 0.85);
+}
+
+/* ── Selection ─────────────────────────────────────────── */
+.theme-light ::selection {
+  background: var(--accent-amber);
+  color: #fff;
+}
+
+/* ── Auth pages ────────────────────────────────────────── */
+.theme-light .auth-page {
+  background: var(--bg-app);
+}
+.theme-light .auth-card {
+  background: var(--bg-card);
+  border-color: var(--border-card);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+}
+.theme-light .auth-card .auth-logo h1 {
+  color: var(--text-heading);
+}
+.theme-light .auth-card .auth-logo p {
+  color: var(--text-disabled);
+}
+.theme-light .auth-card .password-toggle .toggle-btn {
+  color: var(--text-disabled);
+}
+
+/* ── Empty state ───────────────────────────────────────── */
+.theme-light .empty-state i {
+  color: var(--text-disabled);
+}
+.theme-light .empty-state h5 {
+  color: var(--text-heading);
+}
+.theme-light .empty-state p {
+  color: var(--text-secondary);
+}
+
+/* ── User avatar border ────────────────────────────────── */
+.theme-light .cbsh-topbar .user-avatar {
+  border-color: var(--border-card);
+}
+
+/* ── Notification dropdown text ────────────────────────── */
+.theme-light .text-secondary {
+  color: var(--text-secondary) !important;
+}
+
+/* ── Inline styles often used in pages ─────────────────── */
+.theme-light [style*="color:var(--text-disabled)"] {
+  color: var(--text-disabled) !important;
+}
+
