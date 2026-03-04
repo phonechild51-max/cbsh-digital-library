@@ -11,7 +11,6 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <style>
-    /* PDF Viewer Styles */
     .pdf-viewer-container {
       background: var(--bg-body);
       border-radius: 12px;
@@ -90,14 +89,6 @@
       width: 200px;
       margin-top: 1rem;
     }
-    .pdf-page-thumb {
-      cursor: pointer;
-      border: 2px solid transparent;
-      border-radius: 6px;
-      transition: border-color 0.2s;
-      overflow: hidden;
-    }
-    .pdf-page-thumb:hover, .pdf-page-thumb.active { border-color: var(--accent-amber); }
     .view-mode-btn.active { background: var(--accent-amber) !important; color: #000 !important; border-color: var(--accent-amber) !important; }
 
     .image-viewer {
@@ -177,170 +168,190 @@
     const materialId = new URLSearchParams(window.location.search).get('id');
 
     if (!materialId) {
-      App.showError('No material specified.');
-      setTimeout(() => location.href = 'browse-materials.html', 1500);
-      throw new Error('No material ID'); // Stop all further execution
+      document.getElementById('previewArea').innerHTML = `
+        <div class="pdf-loading">
+          <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--warning);"></i>
+          <p class="mt-2">No material specified.</p>
+          <a href="browse-materials.html" class="btn btn-sm btn-primary mt-2">Browse Materials</a>
+        </div>`;
+      document.getElementById('detailsCard').innerHTML = '<p style="color:var(--text-disabled);">No material loaded.</p>';
     }
 
     // PDF Viewer State
     let pdfDoc = null, currentPage = 1, totalPages = 0, currentScale = 1.2;
-    let viewMode = 'single'; // 'single' | 'scroll'
-    let rendering = false;
+    let viewMode = 'single';
 
-    (async function load() {
-      try {
-        console.log('[Preview] Loading material:', materialId);
-
-        const [matRes, bkRes, uploaderRes] = await Promise.all([
-          Insforge.DB.query('materials', { filters: { id: `eq.${materialId}` }, limit: 1 }),
-          Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}`, material_id: `eq.${materialId}` }, limit: 1 }),
-          Insforge.DB.query('users', { select: 'id,name' })
-        ]);
-
-        console.log('[Preview] DB response:', JSON.stringify(matRes));
-
-        const material = matRes.data?.[0];
-        if (!material) {
-          App.showError('Material not found.');
-          return;
-        }
-
-        const uploadersMap = {};
-        (uploaderRes.data || []).forEach(u => uploadersMap[u.id] = u.name);
-        const isBookmarked = (bkRes.data || []).length > 0;
-
-        // ── Get download URL for the file ──
-        console.log('[Preview] Getting download URL for key:', material.insforge_file_key);
-        const dlRes = await Insforge.Storage.getDownloadUrl(material.insforge_file_key);
-        console.log('[Preview] Download strategy:', JSON.stringify(dlRes));
-        const fileUrl = dlRes.data?.url || dlRes.data?.downloadUrl || material.insforge_url;
-        console.log('[Preview] Using URL:', fileUrl);
-
-        // ── Render Preview ──
-        const previewArea = document.getElementById('previewArea');
-
-        if (material.file_type === 'image') {
-          previewArea.innerHTML = `
-            <div class="image-viewer">
-              <img src="${fileUrl}" alt="${App.escapeHtml(material.title)}" id="previewImage" onclick="toggleImageZoom()">
-            </div>`;
-        } else {
-        // PDF — load with PDF.js
-        previewArea.innerHTML = `
-          <div class="pdf-viewer-container">
-            <div class="pdf-toolbar">
-              <div class="toolbar-group">
-                <button onclick="pdfPrevPage()" id="prevPageBtn" title="Previous Page"><i class="bi bi-chevron-left"></i></button>
-                <span class="page-info" id="pageInfo">— / —</span>
-                <button onclick="pdfNextPage()" id="nextPageBtn" title="Next Page"><i class="bi bi-chevron-right"></i></button>
-              </div>
-              <div class="toolbar-group">
-                <button onclick="pdfZoom(-0.2)" title="Zoom Out"><i class="bi bi-dash-lg"></i></button>
-                <span class="zoom-label" id="zoomLabel">120%</span>
-                <button onclick="pdfZoom(0.2)" title="Zoom In"><i class="bi bi-plus-lg"></i></button>
-                <button onclick="pdfFitWidth()" title="Fit Width"><i class="bi bi-arrows-expand"></i></button>
-              </div>
-              <div class="toolbar-group">
-                <button onclick="setViewMode('single')" class="view-mode-btn active" id="singleViewBtn" title="Single Page"><i class="bi bi-file-earmark"></i></button>
-                <button onclick="setViewMode('scroll')" class="view-mode-btn" id="scrollViewBtn" title="Scroll All Pages"><i class="bi bi-files"></i></button>
-              </div>
-            </div>
-            <div class="pdf-canvas-wrapper" id="pdfCanvasWrapper">
-              <div class="pdf-loading" id="pdfLoading">
-                <div class="cbsh-spinner"></div>
-                <p class="mt-2">Loading PDF...</p>
-                <div class="progress"><div class="progress-bar" id="pdfProgress" style="width:0%"></div></div>
-              </div>
-            </div>
-          </div>`;
-
-        // Load the PDF using the already-fetched URL
+    // ── Main Load Function ──
+    if (materialId) {
+      (async function load() {
         try {
-          const loadingTask = pdfjsLib.getDocument(fileUrl);
-          loadingTask.onProgress = (progress) => {
-            if (progress.total > 0) {
-              const pct = Math.round((progress.loaded / progress.total) * 100);
-              document.getElementById('pdfProgress').style.width = pct + '%';
-            }
-          };
+          console.log('[Preview] Loading material:', materialId);
 
-          pdfDoc = await loadingTask.promise;
-          totalPages = pdfDoc.numPages;
-          document.getElementById('pdfLoading').remove();
-          renderCurrentView();
+          // Fetch material data, bookmarks, and users in parallel
+          const [matRes, bkRes, uploaderRes] = await Promise.all([
+            Insforge.DB.query('materials', { filters: { id: `eq.${materialId}` }, limit: 1 }),
+            Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}`, material_id: `eq.${materialId}` }, limit: 1 }),
+            Insforge.DB.query('users', { select: 'id,name' })
+          ]);
+
+          console.log('[Preview] Material result:', JSON.stringify(matRes));
+
+          const material = matRes.data?.[0];
+          if (!material) {
+            document.getElementById('previewArea').innerHTML = `
+              <div class="pdf-loading">
+                <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--warning);"></i>
+                <p class="mt-2">Material not found.</p>
+                <a href="browse-materials.html" class="btn btn-sm btn-primary mt-2">Browse Materials</a>
+              </div>`;
+            return;
+          }
+
+          const uploadersMap = {};
+          (uploaderRes.data || []).forEach(u => uploadersMap[u.id] = u.name);
+          const isBookmarked = (bkRes.data || []).length > 0;
+
+          // ── Fetch the actual file as a blob (works for private buckets) ──
+          console.log('[Preview] Fetching file:', material.insforge_file_key);
+          const dlRes = await Insforge.Storage.getDownloadUrl(material.insforge_file_key);
+          console.log('[Preview] Download result:', dlRes.error ? 'ERROR' : 'OK');
+
+          if (dlRes.error || !dlRes.data?.url) {
+            document.getElementById('previewArea').innerHTML = `
+              <div class="pdf-loading">
+                <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--warning);"></i>
+                <p class="mt-2">Could not load file for preview.</p>
+                <p style="font-size:0.75rem;color:var(--text-disabled);">${dlRes.error?.message || 'Unknown error'}</p>
+              </div>`;
+            // Still show details and download button
+          } else {
+            const fileUrl = dlRes.data.url;
+            const previewArea = document.getElementById('previewArea');
+
+            // ── Render based on file type ──
+            if (material.file_type === 'image') {
+              previewArea.innerHTML = `
+                <div class="image-viewer">
+                  <img src="${fileUrl}" alt="${App.escapeHtml(material.title)}" id="previewImage" onclick="toggleImageZoom()">
+                </div>`;
+            } else {
+              // PDF — render with PDF.js toolbar
+              previewArea.innerHTML = `
+                <div class="pdf-viewer-container">
+                  <div class="pdf-toolbar">
+                    <div class="toolbar-group">
+                      <button onclick="pdfPrevPage()" id="prevPageBtn" title="Previous Page"><i class="bi bi-chevron-left"></i></button>
+                      <span class="page-info" id="pageInfo">— / —</span>
+                      <button onclick="pdfNextPage()" id="nextPageBtn" title="Next Page"><i class="bi bi-chevron-right"></i></button>
+                    </div>
+                    <div class="toolbar-group">
+                      <button onclick="pdfZoom(-0.2)" title="Zoom Out"><i class="bi bi-dash-lg"></i></button>
+                      <span class="zoom-label" id="zoomLabel">120%</span>
+                      <button onclick="pdfZoom(0.2)" title="Zoom In"><i class="bi bi-plus-lg"></i></button>
+                      <button onclick="pdfFitWidth()" title="Fit Width"><i class="bi bi-arrows-expand"></i></button>
+                    </div>
+                    <div class="toolbar-group">
+                      <button onclick="setViewMode('single')" class="view-mode-btn active" id="singleViewBtn" title="Single Page"><i class="bi bi-file-earmark"></i></button>
+                      <button onclick="setViewMode('scroll')" class="view-mode-btn" id="scrollViewBtn" title="Scroll All Pages"><i class="bi bi-files"></i></button>
+                    </div>
+                  </div>
+                  <div class="pdf-canvas-wrapper" id="pdfCanvasWrapper">
+                    <div class="pdf-loading" id="pdfLoading">
+                      <div class="cbsh-spinner"></div>
+                      <p class="mt-2">Rendering PDF...</p>
+                    </div>
+                  </div>
+                </div>`;
+
+              // Load the PDF from the blob URL
+              try {
+                console.log('[Preview] Loading PDF from blob URL...');
+                const loadingTask = pdfjsLib.getDocument(fileUrl);
+                pdfDoc = await loadingTask.promise;
+                totalPages = pdfDoc.numPages;
+                console.log('[Preview] PDF loaded:', totalPages, 'pages');
+                document.getElementById('pdfLoading').remove();
+                renderCurrentView();
+              } catch (err) {
+                console.error('[Preview] PDF render error:', err);
+                previewArea.innerHTML = `
+                  <div class="pdf-loading">
+                    <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--warning);"></i>
+                    <p class="mt-2">Unable to preview PDF in browser.</p>
+                    <p style="font-size:0.75rem;color:var(--text-disabled);">You can still download it using the button on the right.</p>
+                  </div>`;
+              }
+            }
+          }
+
+          // ── Details card ──
+          document.getElementById('detailsCard').innerHTML = `
+            <h4 style="font-size:1.125rem;margin-bottom:1rem;">${App.escapeHtml(material.title)}</h4>
+            ${material.description ? `<p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:1rem;">${App.escapeHtml(material.description)}</p>` : ''}
+            <div class="d-flex flex-column gap-2">
+              <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
+                <span style="color:var(--text-disabled);">Subject</span>
+                <span class="badge bg-secondary">${App.escapeHtml(material.subject)}</span>
+              </div>
+              ${material.semester ? `<div class="d-flex justify-content-between" style="font-size:0.8125rem;">
+                <span style="color:var(--text-disabled);">Semester</span>
+                <span>Sem ${material.semester}</span>
+              </div>` : ''}
+              <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
+                <span style="color:var(--text-disabled);">Type</span>
+                <span>${material.file_type?.toUpperCase()}</span>
+              </div>
+              <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
+                <span style="color:var(--text-disabled);">Size</span>
+                <span>${App.formatFileSize(material.file_size)}</span>
+              </div>
+              <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
+                <span style="color:var(--text-disabled);">Uploaded by</span>
+                <span>${App.escapeHtml(uploadersMap[material.uploaded_by] || 'Unknown')}</span>
+              </div>
+              <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
+                <span style="color:var(--text-disabled);">Date</span>
+                <span>${App.formatDate(material.upload_date)}</span>
+              </div>
+              <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
+                <span style="color:var(--text-disabled);">Downloads</span>
+                <span class="font-mono">${material.download_count || 0}</span>
+              </div>
+              ${material.file_type === 'pdf' && totalPages > 0 ? `<div class="d-flex justify-content-between" style="font-size:0.8125rem;">
+                <span style="color:var(--text-disabled);">Pages</span>
+                <span class="font-mono">${totalPages}</span>
+              </div>` : ''}
+              ${material.tags ? `<div class="mt-2">${material.tags.split(',').map(t => `<span class="badge bg-secondary me-1">${t.trim()}</span>`).join('')}</div>` : ''}
+            </div>
+          `;
+
+          // ── Action buttons ──
+          const actions = document.getElementById('actionBtns');
+          actions.removeAttribute('style');
+          actions.innerHTML = `
+            <button class="btn btn-primary btn-lg" onclick="downloadMaterial()">
+              <i class="bi bi-download me-1"></i>Download ${material.file_type?.toUpperCase()}
+            </button>
+            <button class="btn ${isBookmarked ? 'btn-warning' : 'btn-secondary'}" id="bookmarkBtn" onclick="toggleBookmark()">
+              <i class="bi ${isBookmarked ? 'bi-bookmark-star-fill' : 'bi-bookmark-star'} me-1"></i>
+              ${isBookmarked ? 'Bookmarked' : 'Add Bookmark'}
+            </button>
+          `;
+
+          window._currentMaterial = material;
+          window._isBookmarked = isBookmarked;
+
         } catch (err) {
-          console.error('[Preview] PDF load error:', err);
-          previewArea.innerHTML = `
+          console.error('[Preview] Load error:', err);
+          document.getElementById('previewArea').innerHTML = `
             <div class="pdf-loading">
               <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--warning);"></i>
-              <p class="mt-2">Unable to preview PDF in browser.</p>
-              <p style="font-size:0.75rem;color:var(--text-disabled);">You can still download it using the button on the right.</p>
+              <p class="mt-2">Error loading material.</p>
+              <p style="font-size:0.75rem;color:var(--text-disabled);">${err.message}</p>
             </div>`;
         }
-      }
-
-      // Details card
-      document.getElementById('detailsCard').innerHTML = `
-        <h4 style="font-size:1.125rem;margin-bottom:1rem;">${App.escapeHtml(material.title)}</h4>
-        ${material.description ? `<p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:1rem;">${App.escapeHtml(material.description)}</p>` : ''}
-        <div class="d-flex flex-column gap-2">
-          <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
-            <span style="color:var(--text-disabled);">Subject</span>
-            <span class="badge bg-secondary">${App.escapeHtml(material.subject)}</span>
-          </div>
-          ${material.semester ? `<div class="d-flex justify-content-between" style="font-size:0.8125rem;">
-            <span style="color:var(--text-disabled);">Semester</span>
-            <span>Sem ${material.semester}</span>
-          </div>` : ''}
-          <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
-            <span style="color:var(--text-disabled);">Type</span>
-            <span>${material.file_type?.toUpperCase()}</span>
-          </div>
-          <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
-            <span style="color:var(--text-disabled);">Size</span>
-            <span>${App.formatFileSize(material.file_size)}</span>
-          </div>
-          <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
-            <span style="color:var(--text-disabled);">Uploaded by</span>
-            <span>${App.escapeHtml(uploadersMap[material.uploaded_by] || 'Unknown')}</span>
-          </div>
-          <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
-            <span style="color:var(--text-disabled);">Date</span>
-            <span>${App.formatDate(material.upload_date)}</span>
-          </div>
-          <div class="d-flex justify-content-between" style="font-size:0.8125rem;">
-            <span style="color:var(--text-disabled);">Downloads</span>
-            <span class="font-mono">${material.download_count || 0}</span>
-          </div>
-          ${material.file_type === 'pdf' && totalPages > 0 ? `<div class="d-flex justify-content-between" style="font-size:0.8125rem;">
-            <span style="color:var(--text-disabled);">Pages</span>
-            <span class="font-mono">${totalPages}</span>
-          </div>` : ''}
-          ${material.tags ? `<div class="mt-2">${material.tags.split(',').map(t => `<span class="badge bg-secondary me-1">${t.trim()}</span>`).join('')}</div>` : ''}
-        </div>
-      `;
-
-      // Action buttons
-      const actions = document.getElementById('actionBtns');
-      actions.removeAttribute('style');
-      actions.innerHTML = `
-        <button class="btn btn-primary btn-lg" onclick="downloadMaterial()">
-          <i class="bi bi-download me-1"></i>Download ${material.file_type?.toUpperCase()}
-        </button>
-        <button class="btn ${isBookmarked ? 'btn-warning' : 'btn-secondary'}" id="bookmarkBtn" onclick="toggleBookmark()">
-          <i class="bi ${isBookmarked ? 'bi-bookmark-star-fill' : 'bi-bookmark-star'} me-1"></i>
-          ${isBookmarked ? 'Bookmarked' : 'Add Bookmark'}
-        </button>
-      `;
-
-      window._currentMaterial = material;
-      window._isBookmarked = isBookmarked;
-
-      } catch (err) {
-        console.error('[Preview] Load error:', err);
-        App.showError(err.message || 'Failed to load material.');
-      }
-    })();
+      })();
+    }
 
     // ── PDF Rendering ──────────────────────────────────────────────
 
@@ -366,9 +377,7 @@
         await renderPage(currentPage, wrapper);
         updatePageInfo();
       } else {
-        // Scroll mode — render all pages
         wrapper.innerHTML = '<div class="pdf-loading" id="pdfScrollLoading"><div class="cbsh-spinner"></div><p class="mt-2">Rendering all pages...</p></div>';
-        // Render in batches for performance
         const fragment = document.createDocumentFragment();
         for (let i = 1; i <= totalPages; i++) {
           await renderPage(i, fragment);
@@ -390,17 +399,8 @@
       if (zl) zl.textContent = Math.round(currentScale * 100) + '%';
     }
 
-    function pdfPrevPage() {
-      if (currentPage <= 1) return;
-      currentPage--;
-      renderCurrentView();
-    }
-
-    function pdfNextPage() {
-      if (currentPage >= totalPages) return;
-      currentPage++;
-      renderCurrentView();
-    }
+    function pdfPrevPage() { if (currentPage <= 1) return; currentPage--; renderCurrentView(); }
+    function pdfNextPage() { if (currentPage >= totalPages) return; currentPage++; renderCurrentView(); }
 
     function pdfZoom(delta) {
       currentScale = Math.max(0.4, Math.min(3.0, currentScale + delta));
@@ -425,7 +425,6 @@
     }
 
     // ── Image Zoom ─────────────────────────────────────────────────
-
     function toggleImageZoom() {
       const img = document.getElementById('previewImage');
       if (img) img.classList.toggle('zoomed');
@@ -435,14 +434,26 @@
 
     async function downloadMaterial() {
       const m = window._currentMaterial;
-      const dlRes = await Insforge.Storage.getDownloadUrl(m.insforge_file_key);
-      const url = dlRes.data?.url || dlRes.data?.downloadUrl;
-      if (!url) { App.showError('Download failed.'); return; }
+      if (!m) return;
 
+      const res = await Insforge.Storage.getDownloadUrl(m.insforge_file_key);
+      if (res.error || !res.data?.url) { App.showError('Download failed.'); return; }
+
+      // Track download
       await Insforge.DB.insert('downloads', { user_id: user.id, material_id: m.id });
       await Insforge.DB.update('materials', { id: `eq.${m.id}` }, { download_count: (m.download_count || 0) + 1 });
 
-      window.open(url, '_blank');
+      if (res.data.isBlob) {
+        const a = document.createElement('a');
+        a.href = res.data.url;
+        a.download = m.insforge_file_key.split('/').pop();
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(res.data.url), 5000);
+      } else {
+        window.open(res.data.url, '_blank');
+      }
       App.showSuccess('Download started!');
     }
 
