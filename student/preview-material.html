@@ -179,6 +179,7 @@
     if (!materialId) {
       App.showError('No material specified.');
       setTimeout(() => location.href = 'browse-materials.html', 1500);
+      throw new Error('No material ID'); // Stop all further execution
     }
 
     // PDF Viewer State
@@ -187,31 +188,43 @@
     let rendering = false;
 
     (async function load() {
-      const [matRes, bkRes, uploaderRes] = await Promise.all([
-        Insforge.DB.query('materials', { filters: { id: `eq.${materialId}` }, limit: 1 }),
-        Insforge.DB.query('bookmarks', { filters: { student_id: `eq.${user.id}`, material_id: `eq.${materialId}` }, limit: 1 }),
-        Insforge.DB.query('users', { select: 'id,name' })
-      ]);
+      try {
+        console.log('[Preview] Loading material:', materialId);
 
+        const [matRes, bkRes, uploaderRes] = await Promise.all([
+          Insforge.DB.query('materials', { filters: { id: `eq.${materialId}` }, limit: 1 }),
+          Insforge.DB.query('bookmarks', { filters: { student_id: `eq.${user.id}`, material_id: `eq.${materialId}` }, limit: 1 }),
+          Insforge.DB.query('users', { select: 'id,name' })
+        ]);
 
-      const material = matRes.data?.[0];
-      if (!material) { App.showError('Material not found.'); return; }
+        console.log('[Preview] DB response:', JSON.stringify(matRes));
 
-      const uploadersMap = {};
-      (uploaderRes.data || []).forEach(u => uploadersMap[u.id] = u.name);
-      const isBookmarked = (bkRes.data || []).length > 0;
+        const material = matRes.data?.[0];
+        if (!material) {
+          App.showError('Material not found.');
+          return;
+        }
 
-      // Preview
-      const previewArea = document.getElementById('previewArea');
+        const uploadersMap = {};
+        (uploaderRes.data || []).forEach(u => uploadersMap[u.id] = u.name);
+        const isBookmarked = (bkRes.data || []).length > 0;
 
-      if (material.file_type === 'image') {
+        // ── Get download URL for the file ──
+        console.log('[Preview] Getting download URL for key:', material.insforge_file_key);
         const dlRes = await Insforge.Storage.getDownloadUrl(material.insforge_file_key);
-        const url = dlRes.data?.url || dlRes.data?.downloadUrl || material.insforge_url;
-        previewArea.innerHTML = `
-          <div class="image-viewer">
-            <img src="${url}" alt="${App.escapeHtml(material.title)}" id="previewImage" onclick="toggleImageZoom()">
-          </div>`;
-      } else {
+        console.log('[Preview] Download strategy:', JSON.stringify(dlRes));
+        const fileUrl = dlRes.data?.url || dlRes.data?.downloadUrl || material.insforge_url;
+        console.log('[Preview] Using URL:', fileUrl);
+
+        // ── Render Preview ──
+        const previewArea = document.getElementById('previewArea');
+
+        if (material.file_type === 'image') {
+          previewArea.innerHTML = `
+            <div class="image-viewer">
+              <img src="${fileUrl}" alt="${App.escapeHtml(material.title)}" id="previewImage" onclick="toggleImageZoom()">
+            </div>`;
+        } else {
         // PDF — load with PDF.js
         previewArea.innerHTML = `
           <div class="pdf-viewer-container">
@@ -241,12 +254,9 @@
             </div>
           </div>`;
 
-        // Load the PDF
+        // Load the PDF using the already-fetched URL
         try {
-          const dlRes = await Insforge.Storage.getDownloadUrl(material.insforge_file_key);
-          const url = dlRes.data?.url || dlRes.data?.downloadUrl || material.insforge_url;
-
-          const loadingTask = pdfjsLib.getDocument(url);
+          const loadingTask = pdfjsLib.getDocument(fileUrl);
           loadingTask.onProgress = (progress) => {
             if (progress.total > 0) {
               const pct = Math.round((progress.loaded / progress.total) * 100);
@@ -259,7 +269,7 @@
           document.getElementById('pdfLoading').remove();
           renderCurrentView();
         } catch (err) {
-          console.error('PDF load error:', err);
+          console.error('[Preview] PDF load error:', err);
           previewArea.innerHTML = `
             <div class="pdf-loading">
               <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--warning);"></i>
@@ -325,6 +335,11 @@
 
       window._currentMaterial = material;
       window._isBookmarked = isBookmarked;
+
+      } catch (err) {
+        console.error('[Preview] Load error:', err);
+        App.showError(err.message || 'Failed to load material.');
+      }
     })();
 
     // ── PDF Rendering ──────────────────────────────────────────────

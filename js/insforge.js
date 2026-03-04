@@ -241,7 +241,7 @@ const Insforge = (() => {
     /**
      * Upload a file using the upload-strategy approach.
      * @param {File} file - The file object to upload
-     * @param {string} folder - Optional subfolder path (e.g., 'materials/pdfs/mathematics')
+     * @param {string} folder - Optional subfolder path
      * @param {Function} onProgress - Optional progress callback (0-100)
      * @returns {Object} { data: { key, url, bucket }, error }
      */
@@ -249,108 +249,89 @@ const Insforge = (() => {
       const bucket = INSFORGE_CONFIG.storageBucket;
       try {
         // Step 1: Get upload strategy
+        const filename = folder ? `${folder}/${file.name}` : file.name;
         const strategyRes = await request(`/api/storage/buckets/${bucket}/upload-strategy`, {
           method: 'POST',
-          body: JSON.stringify({
-            filename: folder ? `${folder}/${file.name}` : file.name,
-            contentType: file.type,
-            size: file.size
-          })
+          body: JSON.stringify({ filename, contentType: file.type, size: file.size })
         });
 
         if (strategyRes.error) return strategyRes;
-
         const strategy = strategyRes.data;
+        const objectKey = strategy.key; // Server-assigned key
 
-        // Step 2: Upload file
+        // Step 2: Upload file based on strategy
         if (strategy.method === 'direct') {
-          // Direct upload to InsForge
           const formData = new FormData();
           formData.append('file', file);
-
           const uploadUrl = `${INSFORGE_CONFIG.baseUrl}${strategy.uploadUrl}`;
           const token = localStorage.getItem('cbsh_jwt') || INSFORGE_CONFIG.anonKey;
-
-          const uploadRes = await fetch(uploadUrl, {
+          const res = await fetch(uploadUrl, {
             method: 'PUT',
             headers: { 'Authorization': `Bearer ${token}` },
             body: formData
           });
-
-          if (!uploadRes.ok) {
-            const err = await uploadRes.json().catch(() => ({}));
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
             return { data: null, error: { message: err.message || 'Upload failed' } };
           }
-
-          const data = await uploadRes.json();
+          const data = await res.json();
           if (onProgress) onProgress(100);
-          return { data: { key: strategy.key, ...data }, error: null };
+          return { data: { key: objectKey, bucket, ...data }, error: null };
 
         } else if (strategy.method === 'presigned') {
-          // S3 presigned upload
           const formData = new FormData();
-          // Add all presigned fields
           if (strategy.fields) {
-            Object.entries(strategy.fields).forEach(([k, v]) => {
-              formData.append(k, v);
-            });
+            Object.entries(strategy.fields).forEach(([k, v]) => formData.append(k, v));
           }
           formData.append('file', file);
-
-          const uploadRes = await fetch(strategy.uploadUrl, {
-            method: 'POST',
-            body: formData
-          });
-
-          if (!uploadRes.ok && uploadRes.status !== 204) {
-            return { data: null, error: { message: 'S3 upload failed' } };
+          const res = await fetch(strategy.uploadUrl, { method: 'POST', body: formData });
+          if (!res.ok && res.status !== 204) {
+            return { data: null, error: { message: 'File upload to storage failed' } };
           }
 
-          // Step 3: Confirm upload
-          if (strategy.confirmRequired) {
+          // Confirm upload if required
+          if (strategy.confirmRequired && strategy.confirmUrl) {
             const confirmRes = await request(strategy.confirmUrl, {
               method: 'POST',
-              body: JSON.stringify({
-                size: file.size,
-                contentType: file.type
-              })
+              body: JSON.stringify({ size: file.size, contentType: file.type })
             });
-
             if (confirmRes.error) return confirmRes;
             if (onProgress) onProgress(100);
-            return { data: { key: strategy.key, ...confirmRes.data }, error: null };
+            return { data: { key: objectKey, bucket, ...confirmRes.data }, error: null };
           }
 
           if (onProgress) onProgress(100);
-          return { data: { key: strategy.key, bucket }, error: null };
+          return { data: { key: objectKey, bucket }, error: null };
         }
 
-        return { data: null, error: { message: 'Unknown upload method' } };
+        return { data: null, error: { message: 'Unknown upload strategy' } };
       } catch (err) {
         console.error('[Insforge] Upload error:', err);
         return { data: null, error: { message: err.message } };
       }
     },
 
-    /** Get download URL (may be presigned) */
+    /**
+     * Get a downloadable URL for an object (supports private buckets).
+     * Returns { data: { url }, error }
+     */
     async getDownloadUrl(objectKey, expiresIn = 3600) {
       const bucket = INSFORGE_CONFIG.storageBucket;
-      const encodedKey = encodeURIComponent(objectKey);
-      return request(`/api/storage/buckets/${bucket}/objects/${encodedKey}/download-strategy`, {
+      // The API path uses raw slashes for pseudo-folders
+      const res = await request(`/api/storage/buckets/${bucket}/objects/${objectKey}/download-strategy`, {
         method: 'POST',
         body: JSON.stringify({ expiresIn })
       });
+      return res;
     },
 
     /** Delete a file */
     async delete(objectKey) {
       const bucket = INSFORGE_CONFIG.storageBucket;
-      return request(`/api/storage/buckets/${bucket}/objects/${objectKey}`, {
-        method: 'DELETE'
-      });
+      return request(`/api/storage/buckets/${bucket}/objects/${objectKey}`, { method: 'DELETE' });
     },
 
-    /** List files in a bucket (optionally filtered by prefix) */
+    /** List files in a bucket */
     async list(prefix = '', limit = 100, offset = 0) {
       const bucket = INSFORGE_CONFIG.storageBucket;
       const params = new URLSearchParams({ limit, offset });
@@ -358,14 +339,10 @@ const Insforge = (() => {
       return request(`/api/storage/buckets/${bucket}/objects?${params.toString()}`);
     },
 
-    /**
-     * Build public URL for an object.
-     * For private buckets, use getDownloadUrl() instead.
-     */
+    /** Build direct URL for an object (works only for public buckets) */
     objectUrl(objectKey) {
       const bucket = INSFORGE_CONFIG.storageBucket;
-      const encodedKey = encodeURIComponent(objectKey);
-      return `${INSFORGE_CONFIG.baseUrl}/api/storage/buckets/${bucket}/objects/${encodedKey}`;
+      return `${INSFORGE_CONFIG.baseUrl}/api/storage/buckets/${bucket}/objects/${objectKey}`;
     }
   };
 

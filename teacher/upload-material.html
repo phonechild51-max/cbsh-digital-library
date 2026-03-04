@@ -104,7 +104,7 @@
     const user = AuthGuard.getUser();
     let selectedFile = null;
 
-    // Drag & Drop
+    // ── Drag & Drop ──
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('matFile');
 
@@ -145,6 +145,7 @@
       dropZone.style.display = 'block';
     }
 
+    // ── Upload Handler ──
     document.getElementById('uploadForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -158,25 +159,39 @@
       if (!selectedFile) { App.showError('Please select a file to upload.'); return; }
 
       const btn = document.getElementById('uploadBtn');
+      const barEl = document.getElementById('uploadBar');
       btn.disabled = true;
       document.getElementById('uploadBtnText').innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Uploading...';
       document.getElementById('uploadSpinner').style.display = 'inline-block';
       document.getElementById('uploadProgress').style.display = 'block';
+      barEl.style.width = '10%';
 
       try {
-        // Upload file to storage
+        // ── Step 1: Upload file to InsForge Storage ──
         const folder = `materials/${subject.toLowerCase().replace(/\s+/g, '-')}`;
+        console.log('[Upload] Starting upload:', selectedFile.name, '→', folder);
+        barEl.style.width = '25%';
+
         const uploadRes = await Insforge.Storage.upload(selectedFile, folder, (pct) => {
-          document.getElementById('uploadBar').style.width = pct + '%';
+          barEl.style.width = Math.min(25 + pct * 0.5, 75) + '%';
         });
 
-        if (uploadRes.error) throw new Error(uploadRes.error.message || 'Upload failed');
+        console.log('[Upload] Storage result:', JSON.stringify(uploadRes));
 
-        const fileKey = uploadRes.data?.key;
+        if (uploadRes.error) {
+          throw new Error(uploadRes.error.message || 'File upload failed.');
+        }
+        if (!uploadRes.data?.key) {
+          throw new Error('No file key returned from storage.');
+        }
+
+        barEl.style.width = '80%';
+        const fileKey = uploadRes.data.key;
         const fileUrl = Insforge.Storage.objectUrl(fileKey);
         const fileType = selectedFile.type === 'application/pdf' ? 'pdf' : 'image';
 
-        // Insert material record
+        // ── Step 2: Save material record in database ──
+        console.log('[Upload] Saving to DB — key:', fileKey);
         const matRes = await Insforge.DB.insert('materials', {
           title,
           description: description || null,
@@ -191,10 +206,16 @@
           uploaded_by: user.id
         });
 
-        if (matRes.error) throw new Error(matRes.error.message || 'Failed to save material');
+        console.log('[Upload] DB result:', JSON.stringify(matRes));
 
+        if (matRes.error) {
+          throw new Error(matRes.error.message || 'Failed to save material.');
+        }
+
+        barEl.style.width = '100%';
         AuthGuard.logActivity('UPLOAD_MATERIAL', `Uploaded: ${title} (${subject})`);
 
+        // ── Success ──
         await Swal.fire({
           icon: 'success',
           title: 'Material Uploaded!',
@@ -202,22 +223,21 @@
           confirmButtonText: 'Upload Another'
         });
 
-        // Reset form
         document.getElementById('uploadForm').reset();
         removeFile();
         App.populateSubjects('matSubject');
         App.populateSemesters('matSemester');
 
       } catch (err) {
-        console.error('Upload error:', err);
+        console.error('[Upload] ERROR:', err);
         App.showError(err.message || 'Upload failed. Please try again.');
+      } finally {
+        btn.disabled = false;
+        document.getElementById('uploadBtnText').innerHTML = '<i class="bi bi-upload me-1"></i>Upload Material';
+        document.getElementById('uploadSpinner').style.display = 'none';
+        document.getElementById('uploadProgress').style.display = 'none';
+        barEl.style.width = '0%';
       }
-
-      btn.disabled = false;
-      document.getElementById('uploadBtnText').innerHTML = '<i class="bi bi-upload me-1"></i>Upload Material';
-      document.getElementById('uploadSpinner').style.display = 'none';
-      document.getElementById('uploadProgress').style.display = 'none';
-      document.getElementById('uploadBar').style.width = '0%';
     });
   </script>
 </body>
