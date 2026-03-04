@@ -65,7 +65,6 @@
     let usersCache = {};
 
     (async function loadMaterials() {
-      // Fetch materials and users
       const [matRes, usersRes] = await Promise.all([
         Insforge.DB.query('materials', { order: 'upload_date.desc' }),
         Insforge.DB.query('users', { select: 'id,name' })
@@ -107,7 +106,6 @@
         </tr>`;
       }).join('');
 
-      // Initialize DataTable
       dt = $('#materialsTable').DataTable({
         pageLength: 15,
         order: [[5, 'desc']],
@@ -116,9 +114,25 @@
     })();
 
     async function downloadMaterial(fileKey) {
+      console.log('[Admin] Downloading:', fileKey);
+      App.showLoading();
       const res = await Insforge.Storage.getDownloadUrl(fileKey);
-      if (res.error) { App.showError('Failed to get download link.'); return; }
-      window.open(res.data?.url || res.data?.downloadUrl, '_blank');
+      App.hideLoading();
+      if (res.error || !res.data?.url) {
+        App.showError(res.error?.message || 'Failed to get download link.');
+        return;
+      }
+      if (res.data.isBlob) {
+        const a = document.createElement('a');
+        a.href = res.data.url;
+        a.download = fileKey.split('/').pop();
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(res.data.url), 5000);
+      } else {
+        window.open(res.data.url, '_blank');
+      }
     }
 
     async function deleteMaterial(id, fileKey) {

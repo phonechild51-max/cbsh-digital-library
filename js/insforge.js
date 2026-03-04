@@ -344,17 +344,51 @@ const Insforge = (() => {
     },
 
     /**
-     * Get a downloadable URL for an object (supports private buckets).
+     * Get a downloadable URL for an object.
+     * Tries download-strategy first, falls back to fetching the file as a blob.
      * Returns { data: { url }, error }
      */
     async getDownloadUrl(objectKey, expiresIn = 3600) {
       const bucket = INSFORGE_CONFIG.storageBucket;
-      // The API path uses raw slashes for pseudo-folders
-      const res = await request(`/api/storage/buckets/${bucket}/objects/${objectKey}/download-strategy`, {
-        method: 'POST',
-        body: JSON.stringify({ expiresIn })
-      });
-      return res;
+      console.log('[Storage] Getting download URL for:', objectKey);
+
+      // Try the download-strategy endpoint first
+      try {
+        const res = await request(`/api/storage/buckets/${bucket}/objects/${objectKey}/download-strategy`, {
+          method: 'POST',
+          body: JSON.stringify({ expiresIn })
+        });
+        console.log('[Storage] download-strategy result:', JSON.stringify(res));
+
+        if (!res.error && (res.data?.url || res.data?.downloadUrl)) {
+          return { data: { url: res.data.url || res.data.downloadUrl }, error: null };
+        }
+      } catch (err) {
+        console.warn('[Storage] download-strategy failed, trying fallback:', err.message);
+      }
+
+      // Fallback: Fetch the file directly using the deprecated GET endpoint
+      // This works for both public & private buckets since we send auth headers
+      console.log('[Storage] Using fallback: direct download with auth');
+      const directUrl = `${INSFORGE_CONFIG.baseUrl}/api/storage/buckets/${bucket}/objects/${objectKey}`;
+      const token = localStorage.getItem('cbsh_jwt') || INSFORGE_CONFIG.anonKey;
+
+      try {
+        const res = await fetch(directUrl, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          console.error('[Storage] Direct download failed:', res.status, errText);
+          return { data: null, error: { message: `Download failed (${res.status})` } };
+        }
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        return { data: { url: blobUrl, isBlob: true }, error: null };
+      } catch (err) {
+        console.error('[Storage] Direct download error:', err);
+        return { data: null, error: { message: err.message } };
+      }
     },
 
     /** Delete a file */

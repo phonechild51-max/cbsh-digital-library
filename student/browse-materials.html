@@ -132,6 +132,9 @@
             </div>
             <div class="material-actions">
               <a href="preview-material.html?id=${m.id}" class="btn btn-sm btn-info flex-fill"><i class="bi bi-eye me-1"></i>View</a>
+              <button class="btn btn-sm btn-primary" onclick="downloadMaterial('${m.insforge_file_key}', '${m.id}')" title="Download">
+                <i class="bi bi-download"></i>
+              </button>
               <button class="btn btn-sm ${isBookmarked ? 'btn-warning' : 'btn-secondary'}" onclick="toggleBookmark('${m.id}', this)" title="${isBookmarked ? 'Bookmarked' : 'Bookmark'}">
                 <i class="bi ${isBookmarked ? 'bi-bookmark-star-fill' : 'bi-bookmark-star'}"></i>
               </button>
@@ -162,6 +165,36 @@
         bookmarks.push(materialId);
         btn.classList.replace('btn-secondary', 'btn-warning');
         btn.querySelector('i').className = 'bi bi-bookmark-star-fill';
+      }
+    }
+
+    async function downloadMaterial(fileKey, materialId) {
+      const btn = event.currentTarget;
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = '<span class="cbsh-spinner" style="width:14px;height:14px;"></span>';
+      btn.disabled = true;
+      try {
+        const res = await Insforge.Storage.getDownloadUrl(fileKey);
+        if (res.error || !res.data?.url) { App.showError(res.error?.message || 'Download failed.'); return; }
+        if (res.data.isBlob) {
+          const a = document.createElement('a');
+          a.href = res.data.url;
+          a.download = fileKey.split('/').pop();
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(res.data.url), 5000);
+        } else {
+          window.open(res.data.url, '_blank');
+        }
+        // Track download
+        await Insforge.DB.insert('downloads', { user_id: user.id, material_id: materialId });
+        App.showSuccess('Download started!');
+      } catch (err) {
+        App.showError(err.message || 'Download failed.');
+      } finally {
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
       }
     }
   </script>
