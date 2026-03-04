@@ -28,6 +28,38 @@
     .drop-zone.drag-over i { color: var(--accent-amber); }
     .file-preview { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 10px; margin-top: 1rem; }
     .file-preview i { font-size: 2rem; }
+
+    /* Progress bar styling */
+    #uploadProgress {
+      height: 8px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--bg-input);
+    }
+    #uploadProgress .progress-bar {
+      background: linear-gradient(90deg, var(--accent-amber), #f59e0b);
+      transition: width 0.3s ease;
+      height: 100%;
+    }
+    .upload-status {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+      display: none;
+    }
+    .upload-success-banner {
+      background: linear-gradient(135deg, rgba(34,197,94,0.1) 0%, rgba(34,197,94,0.05) 100%);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: none;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      animation: fadeIn 0.4s ease;
+    }
+    .upload-success-banner i { font-size: 2rem; color: #22c55e; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body>
@@ -38,6 +70,16 @@
       <div class="card">
         <div class="card-header"><i class="bi bi-cloud-arrow-up-fill me-2"></i>Upload Study Material</div>
         <div class="card-body">
+
+          <!-- Success Banner (appears after upload) -->
+          <div id="successBanner" class="upload-success-banner">
+            <i class="bi bi-check-circle-fill"></i>
+            <div>
+              <strong id="successTitle">Material Uploaded!</strong>
+              <p style="margin:0;font-size:0.8125rem;color:var(--text-secondary);" id="successMsg"></p>
+            </div>
+          </div>
+
           <form id="uploadForm" novalidate>
             <div class="row g-3">
               <div class="col-md-8">
@@ -72,6 +114,7 @@
                 <div class="progress" id="uploadProgress" style="display:none;">
                   <div class="progress-bar" id="uploadBar" style="width:0%;"></div>
                 </div>
+                <div class="upload-status" id="uploadStatus"></div>
               </div>
               <div class="col-12">
                 <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn">
@@ -103,6 +146,7 @@
 
     const user = AuthGuard.getUser();
     let selectedFile = null;
+    let progressInterval = null;
 
     // ── Drag & Drop ──
     const dropZone = document.getElementById('dropZone');
@@ -136,6 +180,8 @@
           <button type="button" class="btn btn-sm btn-danger" onclick="removeFile()"><i class="bi bi-x-lg"></i></button>
         </div>`;
       dropZone.style.display = 'none';
+      // Hide success banner when selecting a new file
+      document.getElementById('successBanner').style.display = 'none';
     }
 
     function removeFile() {
@@ -143,6 +189,42 @@
       fileInput.value = '';
       document.getElementById('filePreview').style.display = 'none';
       dropZone.style.display = 'block';
+    }
+
+    // ── Animated Progress Bar ──
+    function startProgress(statusText) {
+      const barEl = document.getElementById('uploadBar');
+      const statusEl = document.getElementById('uploadStatus');
+      document.getElementById('uploadProgress').style.display = 'flex';
+      statusEl.style.display = 'block';
+      statusEl.textContent = statusText || 'Uploading file...';
+      let current = 5;
+      barEl.style.width = current + '%';
+
+      // Animate smoothly to ~85% over time
+      progressInterval = setInterval(() => {
+        if (current < 85) {
+          // Slow down as we approach 85
+          const increment = Math.max(0.3, (85 - current) * 0.04);
+          current += increment;
+          barEl.style.width = current + '%';
+        }
+      }, 100);
+    }
+
+    function setProgress(pct, statusText) {
+      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+      const barEl = document.getElementById('uploadBar');
+      const statusEl = document.getElementById('uploadStatus');
+      barEl.style.width = pct + '%';
+      if (statusText) statusEl.textContent = statusText;
+    }
+
+    function hideProgress() {
+      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+      document.getElementById('uploadProgress').style.display = 'none';
+      document.getElementById('uploadStatus').style.display = 'none';
+      document.getElementById('uploadBar').style.width = '0%';
     }
 
     // ── Upload Handler ──
@@ -158,23 +240,22 @@
       if (!title || !subject) { App.showError('Title and subject are required.'); return; }
       if (!selectedFile) { App.showError('Please select a file to upload.'); return; }
 
+      // Disable form
       const btn = document.getElementById('uploadBtn');
-      const barEl = document.getElementById('uploadBar');
       btn.disabled = true;
       document.getElementById('uploadBtnText').innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Uploading...';
       document.getElementById('uploadSpinner').style.display = 'inline-block';
-      document.getElementById('uploadProgress').style.display = 'block';
-      barEl.style.width = '10%';
+      document.getElementById('successBanner').style.display = 'none';
+
+      // Start animated progress
+      startProgress('Uploading file to storage...');
 
       try {
         // ── Step 1: Upload file to InsForge Storage ──
         const folder = `materials/${subject.toLowerCase().replace(/\s+/g, '-')}`;
         console.log('[Upload] Starting upload:', selectedFile.name, '→', folder);
-        barEl.style.width = '25%';
 
-        const uploadRes = await Insforge.Storage.upload(selectedFile, folder, (pct) => {
-          barEl.style.width = pct + '%';
-        });
+        const uploadRes = await Insforge.Storage.upload(selectedFile, folder);
 
         console.log('[Upload] Storage result:', JSON.stringify(uploadRes));
 
@@ -185,7 +266,7 @@
           throw new Error('No file key returned from storage.');
         }
 
-        barEl.style.width = '80%';
+        setProgress(88, 'Saving to database...');
         const fileKey = uploadRes.data.key;
         const fileUrl = Insforge.Storage.objectUrl(fileKey);
         const fileType = selectedFile.type === 'application/pdf' ? 'pdf' : 'image';
@@ -212,31 +293,33 @@
           throw new Error(matRes.error.message || 'Failed to save material.');
         }
 
-        barEl.style.width = '100%';
+        setProgress(100, 'Complete!');
         AuthGuard.logActivity('UPLOAD_MATERIAL', `Uploaded: ${title} (${subject})`);
 
-        // ── Success ──
-        await Swal.fire({
-          icon: 'success',
-          title: 'Material Uploaded!',
-          text: `"${title}" is now available in the library.`,
-          confirmButtonText: 'Upload Another'
-        });
+        // ── Show inline success banner (no popup) ──
+        setTimeout(() => {
+          hideProgress();
 
-        document.getElementById('uploadForm').reset();
-        removeFile();
-        App.populateSubjects('matSubject');
-        App.populateSemesters('matSemester');
+          // Show success banner
+          const banner = document.getElementById('successBanner');
+          document.getElementById('successMsg').textContent = `"${title}" is now available in the library.`;
+          banner.style.display = 'flex';
+
+          // Reset form
+          document.getElementById('uploadForm').reset();
+          removeFile();
+          App.populateSubjects('matSubject');
+          App.populateSemesters('matSemester');
+        }, 500);
 
       } catch (err) {
         console.error('[Upload] ERROR:', err);
+        hideProgress();
         App.showError(err.message || 'Upload failed. Please try again.');
       } finally {
         btn.disabled = false;
         document.getElementById('uploadBtnText').innerHTML = '<i class="bi bi-upload me-1"></i>Upload Material';
         document.getElementById('uploadSpinner').style.display = 'none';
-        document.getElementById('uploadProgress').style.display = 'none';
-        barEl.style.width = '0%';
       }
     });
   </script>
