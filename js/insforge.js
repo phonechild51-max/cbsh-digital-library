@@ -335,7 +335,8 @@ const Insforge = (() => {
     /** Get download URL (may be presigned) */
     async getDownloadUrl(objectKey, expiresIn = 3600) {
       const bucket = INSFORGE_CONFIG.storageBucket;
-      return request(`/api/storage/buckets/${bucket}/objects/${objectKey}/download-strategy`, {
+      const encodedKey = encodeURIComponent(objectKey);
+      return request(`/api/storage/buckets/${bucket}/objects/${encodedKey}/download-strategy`, {
         method: 'POST',
         body: JSON.stringify({ expiresIn })
       });
@@ -363,7 +364,8 @@ const Insforge = (() => {
      */
     objectUrl(objectKey) {
       const bucket = INSFORGE_CONFIG.storageBucket;
-      return `${INSFORGE_CONFIG.baseUrl}/api/storage/buckets/${bucket}/objects/${objectKey}`;
+      const encodedKey = encodeURIComponent(objectKey);
+      return `${INSFORGE_CONFIG.baseUrl}/api/storage/buckets/${bucket}/objects/${encodedKey}`;
     }
   };
 
