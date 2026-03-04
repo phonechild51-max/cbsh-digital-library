@@ -349,6 +349,12 @@ const Insforge = (() => {
      * Returns { data: { url }, error }
      */
     async getDownloadUrl(objectKey, expiresIn = 3600) {
+      // Guard: reject if key is missing or obviously a placeholder
+      if (!objectKey || typeof objectKey !== 'string' || objectKey.trim() === '') {
+        console.warn('[Storage] getDownloadUrl called with invalid key:', objectKey);
+        return { data: null, error: { message: 'File not available — no valid file key.' } };
+      }
+
       const bucket = INSFORGE_CONFIG.storageBucket;
       console.log('[Storage] Getting download URL for:', objectKey);
 

@@ -95,6 +95,9 @@
           <td><span class="font-mono">${m.download_count || 0}</span></td>
           <td>
             <div class="d-flex gap-1">
+              <a href="../student/preview-material.html?id=${m.id}&role=admin" class="btn btn-sm btn-secondary" title="Preview">
+                <i class="bi bi-eye"></i>
+              </a>
               <button class="btn btn-sm btn-info" onclick="downloadMaterial('${m.insforge_file_key}')" title="Download">
                 <i class="bi bi-download"></i>
               </button>
@@ -114,6 +117,10 @@
     })();
 
     async function downloadMaterial(fileKey) {
+      if (!fileKey || fileKey === 'undefined' || fileKey === 'null') {
+        App.showError('This material has no file attached. Please ask a teacher to re-upload it.');
+        return;
+      }
       console.log('[Admin] Downloading:', fileKey);
       App.showLoading();
       const res = await Insforge.Storage.getDownloadUrl(fileKey);

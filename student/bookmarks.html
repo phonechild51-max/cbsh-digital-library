@@ -36,7 +36,7 @@
 
     async function loadBookmarks() {
       const [bkRes, matRes] = await Promise.all([
-        Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}` }, order: 'created_at.desc' }),
+        Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}` }, order: 'bookmarked_at.desc' }),
         Insforge.DB.query('materials')
       ]);
       const bookmarks = bkRes.data || [];
@@ -64,7 +64,8 @@
               </div>
             </div>
             <div class="material-actions">
-              <a href="preview-material.html?id=${m.id}" class="btn btn-sm btn-info flex-fill"><i class="bi bi-eye me-1"></i>View</a>
+              <a href="preview-material.html?id=${m.id}" class="btn btn-sm btn-secondary" title="Preview"><i class="bi bi-eye"></i></a>
+              <button class="btn btn-sm btn-primary flex-fill" onclick="downloadMaterial('${m.insforge_file_key}')" title="Download"><i class="bi bi-download me-1"></i>Download</button>
               <button class="btn btn-sm btn-danger" onclick="removeBookmark('${b.id}')"><i class="bi bi-x-lg"></i></button>
             </div>
           </div>
@@ -76,6 +77,34 @@
       await Insforge.DB.delete('bookmarks', { id: `eq.${id}` });
       App.showSuccess('Bookmark removed.');
       loadBookmarks();
+    }
+
+    async function downloadMaterial(fileKey) {
+      if (!fileKey || fileKey === 'undefined' || fileKey === 'null') {
+        App.showError('This material has no file attached. It may need to be re-uploaded by a teacher.');
+        return;
+      }
+      try {
+        const res = await Insforge.Storage.getDownloadUrl(fileKey);
+        if (res.error || !res.data?.url) {
+          App.showError(res.error?.message || 'Download failed. The file may no longer be available.');
+          return;
+        }
+        if (res.data.isBlob) {
+          const a = document.createElement('a');
+          a.href = res.data.url;
+          a.download = fileKey.split('/').pop();
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(res.data.url), 5000);
+        } else {
+          window.open(res.data.url, '_blank');
+        }
+        App.showSuccess('Download started!');
+      } catch (err) {
+        App.showError(err.message || 'Download failed.');
+      }
     }
 
     loadBookmarks();

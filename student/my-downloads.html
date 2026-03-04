@@ -67,16 +67,38 @@
             <span class="badge bg-secondary">${App.escapeHtml(m.subject || '—')}</span>
             <span style="font-size:0.75rem;color:var(--text-disabled);margin-left:0.5rem;">${App.timeAgo(d.downloaded_at)}</span>
           </div>
-          <button class="btn btn-sm btn-primary" onclick="redownload('${m.insforge_file_key}')"><i class="bi bi-download"></i></button>
-          <a href="preview-material.html?id=${d.material_id}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>
+          <a href="preview-material.html?id=${d.material_id}" class="btn btn-sm btn-secondary" title="Preview"><i class="bi bi-eye"></i></a>
+          <button class="btn btn-sm btn-primary" onclick="redownload('${m.insforge_file_key}')" title="Re-download"><i class="bi bi-download"></i></button>
         </div>`;
       }).join('');
     })();
 
     async function redownload(key) {
-      if (!key) { App.showError('File not available.'); return; }
-      const res = await Insforge.Storage.getDownloadUrl(key);
-      window.open(res.data?.url || res.data?.downloadUrl, '_blank');
+      if (!key || key === 'undefined' || key === 'null') {
+        App.showError('This material has no file attached. It may need to be re-uploaded by a teacher.');
+        return;
+      }
+      try {
+        const res = await Insforge.Storage.getDownloadUrl(key);
+        if (res.error || !res.data?.url) {
+          App.showError(res.error?.message || 'Download failed. The file may no longer be available.');
+          return;
+        }
+        if (res.data.isBlob) {
+          const a = document.createElement('a');
+          a.href = res.data.url;
+          a.download = key.split('/').pop();
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(res.data.url), 5000);
+        } else {
+          window.open(res.data.url, '_blank');
+        }
+        App.showSuccess('Download started!');
+      } catch (err) {
+        App.showError(err.message || 'Download failed.');
+      }
     }
   </script>
 </body>

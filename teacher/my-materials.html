@@ -136,6 +136,7 @@
                 </div>
               </div>
               <div class="material-actions">
+                <a href="../student/preview-material.html?id=${m.id}&role=teacher" class="btn btn-sm btn-secondary flex-fill" title="Preview"><i class="bi bi-eye"></i></a>
                 <button class="btn btn-sm btn-info flex-fill" onclick="editMaterial('${m.id}')"><i class="bi bi-pencil"></i></button>
                 <button class="btn btn-sm btn-danger flex-fill" onclick="deleteMaterial('${m.id}', '${m.insforge_file_key}')"><i class="bi bi-trash"></i></button>
               </div>
@@ -153,6 +154,7 @@
             <td><span class="font-mono">${m.download_count || 0}</span></td>
             <td>${App.formatDate(m.upload_date)}</td>
             <td>
+              <a href="../student/preview-material.html?id=${m.id}&role=teacher" class="btn btn-sm btn-secondary" title="Preview"><i class="bi bi-eye"></i></a>
               <button class="btn btn-sm btn-info" onclick="editMaterial('${m.id}')"><i class="bi bi-pencil"></i></button>
               <button class="btn btn-sm btn-danger" onclick="deleteMaterial('${m.id}', '${m.insforge_file_key}')"><i class="bi bi-trash"></i></button>
             </td>

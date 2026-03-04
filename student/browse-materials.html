@@ -131,9 +131,11 @@
               </div>
             </div>
             <div class="material-actions">
-              <a href="preview-material.html?id=${m.id}" class="btn btn-sm btn-info flex-fill"><i class="bi bi-eye me-1"></i>View</a>
-              <button class="btn btn-sm btn-primary" onclick="downloadMaterial('${m.insforge_file_key}', '${m.id}')" title="Download">
-                <i class="bi bi-download"></i>
+              <a href="preview-material.html?id=${m.id}" class="btn btn-sm btn-secondary" title="Preview">
+                <i class="bi bi-eye"></i>
+              </a>
+              <button class="btn btn-sm btn-primary flex-fill" onclick="downloadMaterial('${m.insforge_file_key}', '${m.id}')" title="Download">
+                <i class="bi bi-download me-1"></i>Download
               </button>
               <button class="btn btn-sm ${isBookmarked ? 'btn-warning' : 'btn-secondary'}" onclick="toggleBookmark('${m.id}', this)" title="${isBookmarked ? 'Bookmarked' : 'Bookmark'}">
                 <i class="bi ${isBookmarked ? 'bi-bookmark-star-fill' : 'bi-bookmark-star'}"></i>
@@ -169,6 +171,10 @@
     }
 
     async function downloadMaterial(fileKey, materialId) {
+      if (!fileKey || fileKey === 'undefined' || fileKey === 'null') {
+        App.showError('This material has no file attached. It may need to be re-uploaded by a teacher.');
+        return;
+      }
       const btn = event.currentTarget;
       const origHtml = btn.innerHTML;
       btn.innerHTML = '<span class="cbsh-spinner" style="width:14px;height:14px;"></span>';

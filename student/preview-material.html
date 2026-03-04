@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CBSH Student — Preview Material</title>
+  <title>CBSH — Preview Material</title>
   <link rel="icon" href="../assets/images/cbsh-logo.jpg" type="image/jpeg">
   <link rel="stylesheet" href="../css/theme.css">
   <link rel="stylesheet" href="../css/responsive.css">
@@ -85,10 +85,6 @@
       padding: 3rem;
       color: var(--text-disabled);
     }
-    .pdf-loading .progress {
-      width: 200px;
-      margin-top: 1rem;
-    }
     .view-mode-btn.active { background: var(--accent-amber) !important; color: #000 !important; border-color: var(--accent-amber) !important; }
 
     .image-viewer {
@@ -116,7 +112,7 @@
     <div class="cbsh-content">
 
       <!-- Back -->
-      <a href="browse-materials.html" class="btn btn-sm btn-secondary mb-3"><i class="bi bi-arrow-left me-1"></i>Back to Library</a>
+      <a href="#" class="btn btn-sm btn-secondary mb-3" id="backBtn"><i class="bi bi-arrow-left me-1"></i>Back</a>
 
       <div class="row g-4">
         <!-- Preview Area -->
@@ -161,18 +157,33 @@
     // Configure PDF.js worker
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    if (!AuthGuard.init('student')) throw new Error('Not authorized');
-    App.initLayout('Preview Material', 'student');
+    // ── Determine role from URL param or path ──
+    const params = new URLSearchParams(window.location.search);
+    const materialId = params.get('id');
+    const roleParam = params.get('role') || 'student';
+    const validRoles = ['admin', 'teacher', 'student'];
+    const role = validRoles.includes(roleParam) ? roleParam : 'student';
+
+    // Auth guard for the detected role
+    if (!AuthGuard.init(role)) throw new Error('Not authorized');
+    App.initLayout('Preview Material', role);
+
+    // Set back button based on role
+    const backLinks = {
+      admin: '../admin/view-materials.html',
+      teacher: '../teacher/my-materials.html',
+      student: 'browse-materials.html'
+    };
+    document.getElementById('backBtn').href = backLinks[role];
 
     const user = AuthGuard.getUser();
-    const materialId = new URLSearchParams(window.location.search).get('id');
 
     if (!materialId) {
       document.getElementById('previewArea').innerHTML = `
         <div class="pdf-loading">
           <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--warning);"></i>
           <p class="mt-2">No material specified.</p>
-          <a href="browse-materials.html" class="btn btn-sm btn-primary mt-2">Browse Materials</a>
+          <a href="${backLinks[role]}" class="btn btn-sm btn-primary mt-2">Go Back</a>
         </div>`;
       document.getElementById('detailsCard').innerHTML = '<p style="color:var(--text-disabled);">No material loaded.</p>';
     }
@@ -185,16 +196,20 @@
     if (materialId) {
       (async function load() {
         try {
-          console.log('[Preview] Loading material:', materialId);
-
-          // Fetch material data, bookmarks, and users in parallel
-          const [matRes, bkRes, uploaderRes] = await Promise.all([
+          // Fetch material data, bookmarks (student only), and users in parallel
+          const promises = [
             Insforge.DB.query('materials', { filters: { id: `eq.${materialId}` }, limit: 1 }),
-            Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}`, material_id: `eq.${materialId}` }, limit: 1 }),
             Insforge.DB.query('users', { select: 'id,name' })
-          ]);
+          ];
+          // Only fetch bookmarks for students
+          if (role === 'student') {
+            promises.push(Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}`, material_id: `eq.${materialId}` }, limit: 1 }));
+          }
 
-          console.log('[Preview] Material result:', JSON.stringify(matRes));
+          const results = await Promise.all(promises);
+          const matRes = results[0];
+          const uploaderRes = results[1];
+          const bkRes = results[2] || { data: [] };
 
           const material = matRes.data?.[0];
           if (!material) {
@@ -202,7 +217,7 @@
               <div class="pdf-loading">
                 <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--warning);"></i>
                 <p class="mt-2">Material not found.</p>
-                <a href="browse-materials.html" class="btn btn-sm btn-primary mt-2">Browse Materials</a>
+                <a href="${backLinks[role]}" class="btn btn-sm btn-primary mt-2">Go Back</a>
               </div>`;
             return;
           }
@@ -211,10 +226,8 @@
           (uploaderRes.data || []).forEach(u => uploadersMap[u.id] = u.name);
           const isBookmarked = (bkRes.data || []).length > 0;
 
-          // ── Fetch the actual file as a blob (works for private buckets) ──
-          console.log('[Preview] Fetching file:', material.insforge_file_key);
+          // ── Fetch the actual file ──
           const dlRes = await Insforge.Storage.getDownloadUrl(material.insforge_file_key);
-          console.log('[Preview] Download result:', dlRes.error ? 'ERROR' : 'OK');
 
           if (dlRes.error || !dlRes.data?.url) {
             document.getElementById('previewArea').innerHTML = `
@@ -223,19 +236,17 @@
                 <p class="mt-2">Could not load file for preview.</p>
                 <p style="font-size:0.75rem;color:var(--text-disabled);">${dlRes.error?.message || 'Unknown error'}</p>
               </div>`;
-            // Still show details and download button
           } else {
             const fileUrl = dlRes.data.url;
             const previewArea = document.getElementById('previewArea');
 
-            // ── Render based on file type ──
             if (material.file_type === 'image') {
               previewArea.innerHTML = `
                 <div class="image-viewer">
                   <img src="${fileUrl}" alt="${App.escapeHtml(material.title)}" id="previewImage" onclick="toggleImageZoom()">
                 </div>`;
             } else {
-              // PDF — render with PDF.js toolbar
+              // PDF — render with PDF.js
               previewArea.innerHTML = `
                 <div class="pdf-viewer-container">
                   <div class="pdf-toolbar">
@@ -263,13 +274,10 @@
                   </div>
                 </div>`;
 
-              // Load the PDF from the blob URL
               try {
-                console.log('[Preview] Loading PDF from blob URL...');
                 const loadingTask = pdfjsLib.getDocument(fileUrl);
                 pdfDoc = await loadingTask.promise;
                 totalPages = pdfDoc.numPages;
-                console.log('[Preview] PDF loaded:', totalPages, 'pages');
                 document.getElementById('pdfLoading').remove();
                 renderCurrentView();
               } catch (err) {
@@ -328,15 +336,20 @@
           // ── Action buttons ──
           const actions = document.getElementById('actionBtns');
           actions.removeAttribute('style');
-          actions.innerHTML = `
+          let actionsHtml = `
             <button class="btn btn-primary btn-lg" onclick="downloadMaterial()">
               <i class="bi bi-download me-1"></i>Download ${material.file_type?.toUpperCase()}
-            </button>
-            <button class="btn ${isBookmarked ? 'btn-warning' : 'btn-secondary'}" id="bookmarkBtn" onclick="toggleBookmark()">
-              <i class="bi ${isBookmarked ? 'bi-bookmark-star-fill' : 'bi-bookmark-star'} me-1"></i>
-              ${isBookmarked ? 'Bookmarked' : 'Add Bookmark'}
-            </button>
-          `;
+            </button>`;
+
+          // Bookmark only for students
+          if (role === 'student') {
+            actionsHtml += `
+              <button class="btn ${isBookmarked ? 'btn-warning' : 'btn-secondary'}" id="bookmarkBtn" onclick="toggleBookmark()">
+                <i class="bi ${isBookmarked ? 'bi-bookmark-star-fill' : 'bi-bookmark-star'} me-1"></i>
+                ${isBookmarked ? 'Bookmarked' : 'Add Bookmark'}
+              </button>`;
+          }
+          actions.innerHTML = actionsHtml;
 
           window._currentMaterial = material;
           window._isBookmarked = isBookmarked;
@@ -436,12 +449,19 @@
       const m = window._currentMaterial;
       if (!m) return;
 
+      if (!m.insforge_file_key || m.insforge_file_key === 'undefined') {
+        App.showError('This material has no file attached.');
+        return;
+      }
+
       const res = await Insforge.Storage.getDownloadUrl(m.insforge_file_key);
       if (res.error || !res.data?.url) { App.showError('Download failed.'); return; }
 
-      // Track download
-      await Insforge.DB.insert('downloads', { user_id: user.id, material_id: m.id });
-      await Insforge.DB.update('materials', { id: `eq.${m.id}` }, { download_count: (m.download_count || 0) + 1 });
+      // Track download (student only)
+      if (role === 'student') {
+        await Insforge.DB.insert('downloads', { user_id: user.id, material_id: m.id });
+        await Insforge.DB.update('materials', { id: `eq.${m.id}` }, { download_count: (m.download_count || 0) + 1 });
+      }
 
       if (res.data.isBlob) {
         const a = document.createElement('a');
