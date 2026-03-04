@@ -194,39 +194,36 @@
           roll_no: role === 'student' ? rollNo : null,
           employee_id: role === 'teacher' ? employeeId : null,
           status: 'pending',
-          email_verified: false
+          email_verified: true
         };
 
         const dbRes = await Insforge.DB.insert('users', userRecord);
         if (dbRes.error) {
           console.error('DB insert error:', dbRes.error);
-          // Registration succeeded but DB failed — still show success
+          throw new Error('Failed to save your profile. Please contact admin.');
         }
 
-        // Step 4: Send verification email
-        await Insforge.Auth.sendVerificationEmail(email);
-
-        // Step 5: Log activity
+        // Step 3: Log activity
         await Insforge.DB.insert('activity_logs', {
           user_name: name,
           role,
           action: 'REGISTER',
           details: `New ${role} registration: ${email}`,
           status: 'success'
-        });
+        }).catch(() => {}); // non-critical
 
-        // Success
+        // Success — tell user to wait for admin approval
         await Swal.fire({
           icon: 'success',
           title: 'Registration Submitted!',
           html: `
-            <p>A verification code has been sent to <strong>${email}</strong>.</p>
-            <p style="font-size:0.875rem;color:var(--text-secondary);">After verifying your email, an admin will review and approve your account.</p>
+            <p>Your account has been created successfully.</p>
+            <p style="font-size:0.875rem;color:var(--text-secondary);">An admin will review and approve your account. You will be able to log in once approved.</p>
           `,
-          confirmButtonText: 'Verify Email Now'
+          confirmButtonText: 'Go to Login'
         });
 
-        window.location.href = `verify-email.html?email=${encodeURIComponent(email)}`;
+        window.location.href = 'index.html';
 
       } catch (err) {
         console.error('Registration error:', err);

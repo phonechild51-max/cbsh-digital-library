@@ -83,42 +83,78 @@ const AuthGuard = (() => {
     // Step 1: Auth login
     const authRes = await Insforge.Auth.login(email, password);
     if (authRes.error) {
+      // Check if it's an email verification issue
+      const errMsg = (authRes.error.message || '').toLowerCase();
+      if (errMsg.includes('verify') || errMsg.includes('email')) {
+        // User exists in InsForge Auth but email not verified
+        // Look up in our users table by email to give a useful message
+        const lookupRes = await Insforge.DB.query('users', {
+          filters: { email: `eq.${email}` },
+          limit: 1
+        });
+        const appUser = lookupRes.data?.[0];
+        if (appUser) {
+          const statusMessages = {
+            pending: 'Your account is pending admin approval. Please wait for the admin to approve your account.',
+            approved: 'Your email is not verified yet. Please verify your email before logging in.',
+            denied: 'Your account has been denied. Please contact the admin.'
+          };
+          return { success: false, error: statusMessages[appUser.status] || 'Account not approved.' };
+        }
+        return { success: false, error: 'Please verify your email first.', needsVerification: true, email };
+      }
       return { success: false, error: authRes.error.message || 'Login failed. Check your credentials.' };
     }
 
     const { accessToken, csrfToken, user: authUser } = authRes.data;
 
     if (!accessToken) {
-      // Email not verified
-      return {
-        success: false,
-        error: 'Please verify your email first.',
-        needsVerification: true,
-        email: email
-      };
+      // Email not verified — look up user by email for status message
+      const lookupRes = await Insforge.DB.query('users', {
+        filters: { email: `eq.${email}` },
+        limit: 1
+      });
+      const appUser = lookupRes.data?.[0];
+      if (appUser && appUser.status === 'pending') {
+        return { success: false, error: 'Your account is pending admin approval. Please wait for the admin to approve your account.' };
+      }
+      return { success: false, error: 'Please verify your email first.', needsVerification: true, email };
     }
 
     // Save token temporarily so DB queries work
     localStorage.setItem(SESSION_KEYS.jwt, accessToken);
 
-    // Step 2: Get user from our users table
-    const userRes = await Insforge.DB.query('users', {
+    // Step 2: Get user from our users table (try insforge_uid first, then email)
+    let userRes = await Insforge.DB.query('users', {
       filters: { insforge_uid: `eq.${authUser.id}` },
       limit: 1
     });
 
     if (userRes.error || !userRes.data?.length) {
+      // Fallback: look up by email
+      userRes = await Insforge.DB.query('users', {
+        filters: { email: `eq.${email}` },
+        limit: 1
+      });
+    }
+
+    if (userRes.error || !userRes.data?.length) {
       clearSession();
-      return { success: false, error: 'User profile not found. Please contact admin.' };
+      return { success: false, error: 'User profile not found. Please register first or contact admin.' };
     }
 
     const appUser = userRes.data[0];
+
+    // If insforge_uid is missing, update it now
+    if (!appUser.insforge_uid) {
+      Insforge.DB.update('users', { id: `eq.${appUser.id}` }, { insforge_uid: authUser.id });
+    }
 
     // Step 3: Check approval status
     if (appUser.status !== 'approved') {
       clearSession();
       const messages = {
-        pending: 'Your account is pending admin approval.',
+        pending: 'Your account is pending admin approval. Please wait for the admin to approve your account.',
         email_verified: 'Your email is verified. Awaiting admin approval.',
         denied: 'Your account has been denied. Contact admin for details.'
       };

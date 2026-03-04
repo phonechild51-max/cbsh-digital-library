@@ -125,6 +125,9 @@
                 </div>
                 ${u.roll_no ? `<p style="font-size:0.8125rem;color:var(--text-disabled);margin-bottom:0.5rem;"><i class="bi bi-hash me-1"></i>Roll: ${App.escapeHtml(u.roll_no)}</p>` : ''}
                 ${u.employee_id ? `<p style="font-size:0.8125rem;color:var(--text-disabled);margin-bottom:0.5rem;"><i class="bi bi-person-badge me-1"></i>Emp ID: ${App.escapeHtml(u.employee_id)}</p>` : ''}
+                <div class="d-flex gap-2 flex-wrap" style="font-size:0.75rem;color:var(--text-disabled);">
+                  <span><i class="bi bi-calendar3 me-1"></i>${App.formatDate(u.created_at)}</span>
+                </div>
                 ${actionBtns}
               </div>
             </div>
