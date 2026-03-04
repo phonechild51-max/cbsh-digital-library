@@ -52,13 +52,10 @@
           <input type="text" class="form-control" id="regRollNo" placeholder="Enter your roll number">
         </div>
 
-        <!-- ID Card Upload -->
-        <div class="mb-3">
-          <label for="regIdCard" class="form-label">ID Card <span class="text-muted" style="font-size:0.75rem;">(JPG/PNG, max 2MB)</span></label>
-          <input type="file" class="form-control" id="regIdCard" accept=".jpg,.jpeg,.png" required>
-          <div id="idCardPreview" class="mt-2" style="display:none;">
-            <img id="idCardImg" src="" alt="ID Card Preview" style="max-height:120px;border-radius:8px;border:1px solid var(--border-card);">
-          </div>
+        <!-- Employee ID (Teachers only) -->
+        <div class="mb-3" id="employeeIdGroup" style="display:none;">
+          <label for="regEmployeeId" class="form-label">Employee ID</label>
+          <input type="text" class="form-control" id="regEmployeeId" placeholder="Enter your employee ID">
         </div>
 
         <!-- Password -->
@@ -84,10 +81,7 @@
           </div>
         </div>
 
-        <!-- Upload Progress -->
-        <div class="progress mb-3" id="uploadProgress" style="display:none;">
-          <div class="progress-bar" id="uploadBar" role="progressbar" style="width:0%"></div>
-        </div>
+
 
         <!-- Register Button -->
         <button type="submit" class="btn btn-primary w-100 btn-lg" id="registerBtn">
@@ -110,9 +104,11 @@
   <script src="js/main.js"></script>
 
   <script>
-    // ── Show/hide roll number based on role ────────────
+    // ── Show/hide roll number or employee ID based on role ──
     document.getElementById('regRole').addEventListener('change', (e) => {
-      document.getElementById('rollNoGroup').style.display = e.target.value === 'student' ? 'block' : 'none';
+      const role = e.target.value;
+      document.getElementById('rollNoGroup').style.display = role === 'student' ? 'block' : 'none';
+      document.getElementById('employeeIdGroup').style.display = role === 'teacher' ? 'block' : 'none';
     });
 
     // ── Password toggle helper ─────────────────────────
@@ -140,25 +136,7 @@
         checks.map(c => `<span style="color:${c.test ? 'var(--success)' : 'var(--text-disabled)'}"><i class="bi ${c.test ? 'bi-check-circle-fill' : 'bi-x-circle'}"></i> ${c.label}</span>`).join(' ');
     });
 
-    // ── ID Card preview ────────────────────────────────
-    document.getElementById('regIdCard').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      const preview = document.getElementById('idCardPreview');
-      const img = document.getElementById('idCardImg');
-      if (file) {
-        if (file.size > 2 * 1024 * 1024) {
-          App.showError('ID Card must be under 2MB.');
-          e.target.value = '';
-          preview.style.display = 'none';
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = (ev) => { img.src = ev.target.result; preview.style.display = 'block'; };
-        reader.readAsDataURL(file);
-      } else {
-        preview.style.display = 'none';
-      }
-    });
+
 
     // ── Form Submission ────────────────────────────────
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
@@ -168,9 +146,9 @@
       const email = document.getElementById('regEmail').value.trim();
       const role = document.getElementById('regRole').value;
       const rollNo = document.getElementById('regRollNo').value.trim();
+      const employeeId = document.getElementById('regEmployeeId').value.trim();
       const password = document.getElementById('regPassword').value;
       const confirmPw = document.getElementById('regConfirmPassword').value;
-      const idCardFile = document.getElementById('regIdCard').files[0];
 
       // Validation
       if (!name || !email || !role || !password || !confirmPw) {
@@ -179,14 +157,14 @@
       if (role === 'student' && !rollNo) {
         App.showError('Roll number is required for students.'); return;
       }
+      if (role === 'teacher' && !employeeId) {
+        App.showError('Employee ID is required for teachers.'); return;
+      }
       if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
         App.showError('Password must be at least 8 characters with uppercase, number, and special character.'); return;
       }
       if (password !== confirmPw) {
         App.showError('Passwords do not match.'); return;
-      }
-      if (!idCardFile) {
-        App.showError('Please upload your ID card.'); return;
       }
 
       // Set loading state
@@ -207,27 +185,14 @@
         const authUid = authRes.data?.user?.id;
         if (!authUid) throw new Error('Failed to get user ID from registration.');
 
-        // Step 2: Upload ID card to InsForge Storage
-        document.getElementById('uploadProgress').style.display = 'block';
-        const idUpload = await Insforge.Storage.upload(idCardFile, `id-cards/pending/${authUid}`, (pct) => {
-          document.getElementById('uploadBar').style.width = pct + '%';
-        });
-
-        let idCardKey = null, idCardUrl = null;
-        if (!idUpload.error) {
-          idCardKey = idUpload.data?.key;
-          idCardUrl = Insforge.Storage.objectUrl(idCardKey);
-        }
-
-        // Step 3: Insert user record in our users table
+        // Step 2: Insert user record in our users table
         const userRecord = {
           insforge_uid: authUid,
           name,
           email,
           role,
           roll_no: role === 'student' ? rollNo : null,
-          id_card_file_key: idCardKey,
-          id_card_url: idCardUrl,
+          employee_id: role === 'teacher' ? employeeId : null,
           status: 'pending',
           email_verified: false
         };
@@ -269,7 +234,6 @@
         btn.disabled = false;
         btnText.textContent = 'Create Account';
         spinner.style.display = 'none';
-        document.getElementById('uploadProgress').style.display = 'none';
       }
     });
   </script>

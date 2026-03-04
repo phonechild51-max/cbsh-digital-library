@@ -44,23 +44,7 @@
     </div>
   </div>
 
-  <!-- ID Card Modal -->
-  <div class="modal fade" id="idCardModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">ID Card Preview</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body text-center">
-          <img id="idCardModalImg" src="" alt="ID Card" style="max-width:100%;border-radius:8px;">
-        </div>
-        <div class="modal-footer">
-          <a id="idCardDownloadLink" href="#" download class="btn btn-primary btn-sm"><i class="bi bi-download me-1"></i>Download</a>
-        </div>
-      </div>
-    </div>
-  </div>
+
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -139,15 +123,8 @@
                   </div>
                   ${roleBadge}
                 </div>
-                ${u.roll_no ? `<p style="font-size:0.8125rem;color:var(--text-disabled);margin-bottom:0.5rem;">Roll: ${App.escapeHtml(u.roll_no)}</p>` : ''}
-                <div class="d-flex gap-2 flex-wrap" style="font-size:0.75rem;color:var(--text-disabled);">
-                  <span><i class="bi bi-calendar3 me-1"></i>${App.formatDate(u.created_at)}</span>
-                  <span><i class="bi bi-envelope me-1"></i>${u.email_verified ? 'Verified' : 'Not verified'}</span>
-                </div>
-                ${u.id_card_url ? `
-                  <button class="btn btn-sm btn-info mt-2" onclick="showIdCard('${u.id_card_url}')">
-                    <i class="bi bi-card-image me-1"></i>View ID Card
-                  </button>` : ''}
+                ${u.roll_no ? `<p style="font-size:0.8125rem;color:var(--text-disabled);margin-bottom:0.5rem;"><i class="bi bi-hash me-1"></i>Roll: ${App.escapeHtml(u.roll_no)}</p>` : ''}
+                ${u.employee_id ? `<p style="font-size:0.8125rem;color:var(--text-disabled);margin-bottom:0.5rem;"><i class="bi bi-person-badge me-1"></i>Emp ID: ${App.escapeHtml(u.employee_id)}</p>` : ''}
                 ${actionBtns}
               </div>
             </div>
@@ -155,11 +132,7 @@
       }).join('');
     }
 
-    function showIdCard(url) {
-      document.getElementById('idCardModalImg').src = url;
-      document.getElementById('idCardDownloadLink').href = url;
-      new bootstrap.Modal(document.getElementById('idCardModal')).show();
-    }
+
 
     async function approveUser(userId) {
       const confirmed = await App.confirm('Approve User', 'This user will be able to log in and access the system.', 'Approve', 'question');
