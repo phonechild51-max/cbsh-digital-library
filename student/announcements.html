@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBSH Student — Announcements</title>
+  <link rel="icon" href="../assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+</head>
+<body>
+  <div id="sidebarContainer"></div>
+  <div class="cbsh-main">
+    <div id="topbarContainer"></div>
+    <div class="cbsh-content">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-megaphone-fill me-2"></i>Announcements</div>
+        <div class="card-body p-0" id="annList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/insforge.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/theme-toggle.js"></script>
+  <script src="../js/notifications.js"></script>
+
+  <script>
+    if (!AuthGuard.init('student')) throw new Error('Not authorized');
+    App.initLayout('Announcements', 'student');
+
+    (async function load() {
+      const res = await Insforge.DB.query('announcements', {
+        filters: { target_role: 'in.(all,students)' },
+        order: 'created_at.desc'
+      });
+      const items = res.data || [];
+      const list = document.getElementById('annList');
+
+      if (items.length === 0) {
+        list.innerHTML = '<div class="empty-state"><i class="bi bi-megaphone"></i><h5>No announcements</h5><p>Check back later for updates from your teachers and admin.</p></div>';
+        return;
+      }
+
+      const priorityBadge = { normal: 'bg-secondary', important: 'bg-warning', urgent: 'bg-danger' };
+      const priorityIcon = { normal: 'bi-info-circle', important: 'bi-exclamation-triangle', urgent: 'bi-exclamation-octagon-fill' };
+
+      list.innerHTML = items.map((a, i) => `
+        <div class="d-flex gap-3 p-3 ${i > 0 ? 'border-top' : ''} animate-fade-in-up stagger-${(i % 4) + 1}" style="border-color:var(--border-divider)!important;">
+          <div class="stat-icon ${a.priority === 'urgent' ? 'red' : a.priority === 'important' ? 'amber' : 'blue'}" style="flex-shrink:0;">
+            <i class="bi ${priorityIcon[a.priority]}"></i>
+          </div>
+          <div class="flex-grow-1">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <h5 style="font-size:1rem;margin:0;">${App.escapeHtml(a.title)}</h5>
+              <span class="badge ${priorityBadge[a.priority]}">${a.priority}</span>
+            </div>
+            <p style="font-size:0.875rem;margin:0.25rem 0 0.5rem;color:var(--text-secondary);">${App.escapeHtml(a.content)}</p>
+            <span style="font-size:0.75rem;color:var(--text-disabled);">
+              <i class="bi bi-clock me-1"></i>${App.timeAgo(a.created_at)}
+              ${a.expiry_date ? ` · Expires ${App.formatDate(a.expiry_date)}` : ''}
+            </span>
+          </div>
+        </div>
+      `).join('');
+    })();
+  </script>
+</body>
+</html>

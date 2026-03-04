@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Register for the CBSH Digital Library — Teachers and Students.">
+  <title>CBSH Digital Library — Register</title>
+  <link rel="icon" href="assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+</head>
+<body>
+
+  <div class="auth-page">
+    <div class="auth-card animate-fade-in-up" style="max-width:500px;">
+
+      <div class="auth-logo">
+        <img src="assets/images/cbsh-logo.jpg" alt="CBSH Logo">
+        <h1>Create Account</h1>
+        <p>Join the CBSH Digital Library</p>
+      </div>
+
+      <form id="registerForm" novalidate>
+        <!-- Full Name -->
+        <div class="mb-3">
+          <label for="regName" class="form-label">Full Name</label>
+          <input type="text" class="form-control" id="regName" placeholder="Enter your full name" required>
+        </div>
+
+        <!-- Email -->
+        <div class="mb-3">
+          <label for="regEmail" class="form-label">Email Address</label>
+          <input type="email" class="form-control" id="regEmail" placeholder="you@cbsh.edu" required>
+        </div>
+
+        <!-- Role -->
+        <div class="mb-3">
+          <label for="regRole" class="form-label">Role</label>
+          <select class="form-select" id="regRole" required>
+            <option value="">Select your role</option>
+            <option value="teacher">Teacher</option>
+            <option value="student">Student</option>
+          </select>
+        </div>
+
+        <!-- Roll Number (Students only) -->
+        <div class="mb-3" id="rollNoGroup" style="display:none;">
+          <label for="regRollNo" class="form-label">Roll Number</label>
+          <input type="text" class="form-control" id="regRollNo" placeholder="Enter your roll number">
+        </div>
+
+        <!-- ID Card Upload -->
+        <div class="mb-3">
+          <label for="regIdCard" class="form-label">ID Card <span class="text-muted" style="font-size:0.75rem;">(JPG/PNG, max 2MB)</span></label>
+          <input type="file" class="form-control" id="regIdCard" accept=".jpg,.jpeg,.png" required>
+          <div id="idCardPreview" class="mt-2" style="display:none;">
+            <img id="idCardImg" src="" alt="ID Card Preview" style="max-height:120px;border-radius:8px;border:1px solid var(--border-card);">
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="mb-3">
+          <label for="regPassword" class="form-label">Password</label>
+          <div class="password-toggle">
+            <input type="password" class="form-control" id="regPassword" placeholder="Min 8 chars, 1 uppercase, 1 number, 1 special" required>
+            <button type="button" class="toggle-btn" onclick="togglePw('regPassword', 'regEye')">
+              <i class="bi bi-eye" id="regEye"></i>
+            </button>
+          </div>
+          <div id="pwStrength" class="mt-1" style="font-size:0.75rem;"></div>
+        </div>
+
+        <!-- Confirm Password -->
+        <div class="mb-3">
+          <label for="regConfirmPassword" class="form-label">Confirm Password</label>
+          <div class="password-toggle">
+            <input type="password" class="form-control" id="regConfirmPassword" placeholder="Re-enter your password" required>
+            <button type="button" class="toggle-btn" onclick="togglePw('regConfirmPassword', 'regEye2')">
+              <i class="bi bi-eye" id="regEye2"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Upload Progress -->
+        <div class="progress mb-3" id="uploadProgress" style="display:none;">
+          <div class="progress-bar" id="uploadBar" role="progressbar" style="width:0%"></div>
+        </div>
+
+        <!-- Register Button -->
+        <button type="submit" class="btn btn-primary w-100 btn-lg" id="registerBtn">
+          <span id="regBtnText">Create Account</span>
+          <span id="regSpinner" class="cbsh-spinner ms-2" style="display:none;"></span>
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Already have an account? <a href="index.html">Sign In</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="js/config.js"></script>
+  <script src="js/insforge.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/main.js"></script>
+
+  <script>
+    // ── Show/hide roll number based on role ────────────
+    document.getElementById('regRole').addEventListener('change', (e) => {
+      document.getElementById('rollNoGroup').style.display = e.target.value === 'student' ? 'block' : 'none';
+    });
+
+    // ── Password toggle helper ─────────────────────────
+    function togglePw(inputId, iconId) {
+      const inp = document.getElementById(inputId);
+      const ico = document.getElementById(iconId);
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      ico.className = inp.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+    }
+
+    // ── Password strength indicator ────────────────────
+    document.getElementById('regPassword').addEventListener('input', (e) => {
+      const pw = e.target.value;
+      const el = document.getElementById('pwStrength');
+      const checks = [
+        { test: pw.length >= 8, label: '8+ chars' },
+        { test: /[A-Z]/.test(pw), label: 'Uppercase' },
+        { test: /[0-9]/.test(pw), label: 'Number' },
+        { test: /[^A-Za-z0-9]/.test(pw), label: 'Special' }
+      ];
+      const passed = checks.filter(c => c.test).length;
+      const colors = ['var(--danger)', 'var(--danger)', 'var(--warning)', 'var(--warning)', 'var(--success)'];
+      const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+      el.innerHTML = `<span style="color:${colors[passed]}">${labels[passed]}</span> — ` +
+        checks.map(c => `<span style="color:${c.test ? 'var(--success)' : 'var(--text-disabled)'}"><i class="bi ${c.test ? 'bi-check-circle-fill' : 'bi-x-circle'}"></i> ${c.label}</span>`).join(' ');
+    });
+
+    // ── ID Card preview ────────────────────────────────
+    document.getElementById('regIdCard').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const preview = document.getElementById('idCardPreview');
+      const img = document.getElementById('idCardImg');
+      if (file) {
+        if (file.size > 2 * 1024 * 1024) {
+          App.showError('ID Card must be under 2MB.');
+          e.target.value = '';
+          preview.style.display = 'none';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => { img.src = ev.target.result; preview.style.display = 'block'; };
+        reader.readAsDataURL(file);
+      } else {
+        preview.style.display = 'none';
+      }
+    });
+
+    // ── Form Submission ────────────────────────────────
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('regName').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const role = document.getElementById('regRole').value;
+      const rollNo = document.getElementById('regRollNo').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const confirmPw = document.getElementById('regConfirmPassword').value;
+      const idCardFile = document.getElementById('regIdCard').files[0];
+
+      // Validation
+      if (!name || !email || !role || !password || !confirmPw) {
+        App.showError('Please fill in all required fields.'); return;
+      }
+      if (role === 'student' && !rollNo) {
+        App.showError('Roll number is required for students.'); return;
+      }
+      if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+        App.showError('Password must be at least 8 characters with uppercase, number, and special character.'); return;
+      }
+      if (password !== confirmPw) {
+        App.showError('Passwords do not match.'); return;
+      }
+      if (!idCardFile) {
+        App.showError('Please upload your ID card.'); return;
+      }
+
+      // Set loading state
+      const btn = document.getElementById('registerBtn');
+      const btnText = document.getElementById('regBtnText');
+      const spinner = document.getElementById('regSpinner');
+      btn.disabled = true;
+      btnText.textContent = 'Creating account...';
+      spinner.style.display = 'inline-block';
+
+      try {
+        // Step 1: Register with InsForge Auth
+        const authRes = await Insforge.Auth.register(email, password, name);
+        if (authRes.error) {
+          throw new Error(authRes.error.message || 'Registration failed.');
+        }
+
+        const authUid = authRes.data?.user?.id;
+        if (!authUid) throw new Error('Failed to get user ID from registration.');
+
+        // Step 2: Upload ID card to InsForge Storage
+        document.getElementById('uploadProgress').style.display = 'block';
+        const idUpload = await Insforge.Storage.upload(idCardFile, `id-cards/pending/${authUid}`, (pct) => {
+          document.getElementById('uploadBar').style.width = pct + '%';
+        });
+
+        let idCardKey = null, idCardUrl = null;
+        if (!idUpload.error) {
+          idCardKey = idUpload.data?.key;
+          idCardUrl = Insforge.Storage.objectUrl(idCardKey);
+        }
+
+        // Step 3: Insert user record in our users table
+        const userRecord = {
+          insforge_uid: authUid,
+          name,
+          email,
+          role,
+          roll_no: role === 'student' ? rollNo : null,
+          id_card_file_key: idCardKey,
+          id_card_url: idCardUrl,
+          status: 'pending',
+          email_verified: false
+        };
+
+        const dbRes = await Insforge.DB.insert('users', userRecord);
+        if (dbRes.error) {
+          console.error('DB insert error:', dbRes.error);
+          // Registration succeeded but DB failed — still show success
+        }
+
+        // Step 4: Send verification email
+        await Insforge.Auth.sendVerificationEmail(email);
+
+        // Step 5: Log activity
+        await Insforge.DB.insert('activity_logs', {
+          user_name: name,
+          role,
+          action: 'REGISTER',
+          details: `New ${role} registration: ${email}`,
+          status: 'success'
+        });
+
+        // Success
+        await Swal.fire({
+          icon: 'success',
+          title: 'Registration Submitted!',
+          html: `
+            <p>A verification code has been sent to <strong>${email}</strong>.</p>
+            <p style="font-size:0.875rem;color:var(--text-secondary);">After verifying your email, an admin will review and approve your account.</p>
+          `,
+          confirmButtonText: 'Verify Email Now'
+        });
+
+        window.location.href = `verify-email.html?email=${encodeURIComponent(email)}`;
+
+      } catch (err) {
+        console.error('Registration error:', err);
+        App.showError(err.message || 'Registration failed. Please try again.');
+        btn.disabled = false;
+        btnText.textContent = 'Create Account';
+        spinner.style.display = 'none';
+        document.getElementById('uploadProgress').style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>

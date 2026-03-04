@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBSH Student — Quiz Instructions</title>
+  <link rel="icon" href="../assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+</head>
+<body>
+  <div id="sidebarContainer"></div>
+  <div class="cbsh-main">
+    <div id="topbarContainer"></div>
+    <div class="cbsh-content">
+
+      <a href="available-quizzes.html" class="btn btn-sm btn-secondary mb-3"><i class="bi bi-arrow-left me-1"></i>Back</a>
+
+      <div class="row justify-content-center">
+        <div class="col-lg-8">
+          <div class="card" id="instructionCard">
+            <div class="card-body text-center py-4">
+              <div class="cbsh-spinner mb-2"></div>
+              <p style="color:var(--text-disabled);">Loading quiz details...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/insforge.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/theme-toggle.js"></script>
+  <script src="../js/notifications.js"></script>
+
+  <script>
+    if (!AuthGuard.init('student')) throw new Error('Not authorized');
+    App.initLayout('Quiz Instructions', 'student');
+
+    const user = AuthGuard.getUser();
+    const quizId = new URLSearchParams(window.location.search).get('id');
+
+    (async function load() {
+      const [qRes, questRes, attRes] = await Promise.all([
+        Insforge.DB.query('quizzes', { filters: { id: `eq.${quizId}` }, limit: 1 }),
+        Insforge.DB.query('questions', { filters: { quiz_id: `eq.${quizId}` }, select: 'id' }),
+        Insforge.DB.query('quiz_attempts', { filters: { quiz_id: `eq.${quizId}`, student_id: `eq.${user.id}` } })
+      ]);
+
+      const quiz = qRes.data?.[0];
+      if (!quiz) { App.showError('Quiz not found.'); return; }
+
+      const totalQ = questRes.data?.length || 0;
+      const attemptsUsed = attRes.data?.length || 0;
+      const attemptsLeft = (quiz.max_attempts || 1) - attemptsUsed;
+
+      document.getElementById('instructionCard').innerHTML = `
+        <div class="card-header text-center" style="font-size:1.25rem;font-weight:600;">
+          <i class="bi bi-patch-question-fill me-2 text-amber"></i>${App.escapeHtml(quiz.title)}
+        </div>
+        <div class="card-body">
+          <div class="text-center mb-4">
+            <span class="badge bg-secondary">${App.escapeHtml(quiz.subject)}</span>
+          </div>
+          ${quiz.description ? `<p class="text-center mb-4" style="color:var(--text-secondary);">${App.escapeHtml(quiz.description)}</p>` : ''}
+
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3"><div class="stat-card text-center"><div class="stat-icon amber mx-auto"><i class="bi bi-clock"></i></div><div class="stat-value">${quiz.duration}</div><div class="stat-label">Minutes</div></div></div>
+            <div class="col-6 col-md-3"><div class="stat-card text-center"><div class="stat-icon blue mx-auto"><i class="bi bi-question-circle"></i></div><div class="stat-value">${totalQ}</div><div class="stat-label">Questions</div></div></div>
+            <div class="col-6 col-md-3"><div class="stat-card text-center"><div class="stat-icon green mx-auto"><i class="bi bi-star"></i></div><div class="stat-value">${quiz.total_marks}</div><div class="stat-label">Total Marks</div></div></div>
+            <div class="col-6 col-md-3"><div class="stat-card text-center"><div class="stat-icon red mx-auto"><i class="bi bi-bullseye"></i></div><div class="stat-value">${quiz.passing_marks}</div><div class="stat-label">Pass Marks</div></div></div>
+          </div>
+
+          <div class="card mb-4" style="background:var(--bg-input);">
+            <div class="card-body">
+              <h5 style="font-size:1rem;"><i class="bi bi-info-circle me-2 text-amber"></i>Instructions</h5>
+              <ul style="font-size:0.875rem;color:var(--text-secondary);padding-left:1.25rem;">
+                <li>You have <strong>${quiz.duration} minutes</strong> to complete this quiz.</li>
+                <li>There are <strong>${totalQ} questions</strong>, each is multiple choice (A/B/C/D).</li>
+                <li>Total marks: <strong>${quiz.total_marks}</strong>, passing marks: <strong>${quiz.passing_marks}</strong>.</li>
+                <li>You have <strong>${attemptsLeft}</strong> attempt${attemptsLeft !== 1 ? 's' : ''} remaining.</li>
+                ${quiz.randomize_questions ? '<li>Questions will be presented in random order.</li>' : ''}
+                ${quiz.show_results_immediately ? '<li>Results will be shown immediately after submission.</li>' : '<li>Results will be available after the teacher reviews.</li>'}
+                <li>Do <strong>not</strong> refresh or close the browser during the quiz.</li>
+                <li>The quiz will auto-submit when time runs out.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="text-center">
+            ${attemptsLeft > 0
+              ? `<button class="btn btn-primary btn-lg px-5" onclick="startQuiz()"><i class="bi bi-play-fill me-1"></i>Start Quiz</button>`
+              : `<button class="btn btn-secondary btn-lg px-5" disabled>No Attempts Remaining</button>`}
+          </div>
+        </div>
+      `;
+    })();
+
+    async function startQuiz() {
+      const confirmed = await App.confirm('Start Quiz?', 'The timer will begin immediately. Are you ready?', 'Start Now', 'question');
+      if (confirmed) window.location.href = `take-quiz.html?id=${quizId}`;
+    }
+  </script>
+</body>
+</html>

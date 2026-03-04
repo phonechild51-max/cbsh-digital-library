@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBSH Student — Browse Materials</title>
+  <link rel="icon" href="../assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+</head>
+<body>
+  <div id="sidebarContainer"></div>
+  <div class="cbsh-main">
+    <div id="topbarContainer"></div>
+    <div class="cbsh-content">
+
+      <!-- Filters -->
+      <div class="d-flex flex-wrap gap-2 mb-4 align-items-center">
+        <div class="cbsh-search flex-grow-1" style="max-width:350px;">
+          <i class="bi bi-search"></i>
+          <input type="text" class="form-control" id="searchInput" placeholder="Search materials...">
+        </div>
+        <select class="form-select" id="filterSubject" style="max-width:180px;"></select>
+        <select class="form-select" id="filterSemester" style="max-width:160px;"></select>
+        <select class="form-select" id="filterType" style="max-width:140px;">
+          <option value="">All Types</option>
+          <option value="pdf">PDF</option>
+          <option value="image">Image</option>
+        </select>
+        <select class="form-select" id="sortBy" style="max-width:160px;">
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="downloads">Most Downloaded</option>
+          <option value="title">Title A-Z</option>
+        </select>
+      </div>
+
+      <!-- Results Count -->
+      <div class="mb-3" style="font-size:0.875rem;color:var(--text-secondary);">
+        Showing <span id="resultCount" class="fw-bold">0</span> materials
+      </div>
+
+      <!-- Materials Grid -->
+      <div class="row g-3" id="materialsGrid"></div>
+
+      <!-- Load More -->
+      <div class="text-center mt-4" id="loadMoreContainer" style="display:none;">
+        <button class="btn btn-secondary" onclick="loadMore()">Load More</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/insforge.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/theme-toggle.js"></script>
+  <script src="../js/notifications.js"></script>
+
+  <script>
+    if (!AuthGuard.init('student')) throw new Error('Not authorized');
+    App.initLayout('Browse Materials', 'student');
+    App.populateSubjects('filterSubject', true);
+    App.populateSemesters('filterSemester', true);
+
+    const user = AuthGuard.getUser();
+    let allMaterials = [], bookmarks = [], displayLimit = 12;
+
+    (async function load() {
+      const [matRes, bkRes] = await Promise.all([
+        Insforge.DB.query('materials', { order: 'upload_date.desc' }),
+        Insforge.DB.query('bookmarks', { filters: { student_id: `eq.${user.id}` } })
+      ]);
+      allMaterials = matRes.data || [];
+      bookmarks = (bkRes.data || []).map(b => b.material_id);
+      render();
+    })();
+
+    function getFiltered() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const subject = document.getElementById('filterSubject').value;
+      const semester = document.getElementById('filterSemester').value;
+      const type = document.getElementById('filterType').value;
+      const sort = document.getElementById('sortBy').value;
+
+      let filtered = [...allMaterials];
+      if (search) filtered = filtered.filter(m => m.title.toLowerCase().includes(search) || (m.description || '').toLowerCase().includes(search) || (m.tags || '').toLowerCase().includes(search));
+      if (subject) filtered = filtered.filter(m => m.subject === subject);
+      if (semester) filtered = filtered.filter(m => String(m.semester) === semester);
+      if (type) filtered = filtered.filter(m => m.file_type === type);
+
+      if (sort === 'oldest') filtered.sort((a, b) => new Date(a.upload_date) - new Date(b.upload_date));
+      else if (sort === 'downloads') filtered.sort((a, b) => (b.download_count || 0) - (a.download_count || 0));
+      else if (sort === 'title') filtered.sort((a, b) => a.title.localeCompare(b.title));
+      // 'newest' is default order
+
+      return filtered;
+    }
+
+    function render() {
+      const filtered = getFiltered();
+      const toShow = filtered.slice(0, displayLimit);
+      document.getElementById('resultCount').textContent = filtered.length;
+
+      const grid = document.getElementById('materialsGrid');
+      if (toShow.length === 0) {
+        grid.innerHTML = '<div class="col-12"><div class="empty-state"><i class="bi bi-journal-x"></i><h5>No materials found</h5><p>Try adjusting your filters.</p></div></div>';
+        document.getElementById('loadMoreContainer').style.display = 'none';
+        return;
+      }
+
+      grid.innerHTML = toShow.map((m, i) => {
+        const icon = m.file_type === 'pdf' ? 'bi-file-earmark-pdf' : 'bi-file-earmark-image';
+        const isBookmarked = bookmarks.includes(m.id);
+        return `<div class="col-sm-6 col-lg-4 col-xl-3">
+          <div class="material-card animate-fade-in-up stagger-${(i % 6) + 1}">
+            <div class="material-thumb"><i class="bi ${icon}"></i></div>
+            <div class="material-info">
+              <div class="material-title">${App.escapeHtml(m.title)}</div>
+              <span class="badge bg-secondary">${App.escapeHtml(m.subject)}</span>
+              ${m.semester ? `<span class="badge bg-info ms-1">Sem ${m.semester}</span>` : ''}
+              ${m.description ? `<p style="font-size:0.75rem;color:var(--text-secondary);margin:0.5rem 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${App.escapeHtml(m.description)}</p>` : ''}
+              <div class="material-meta">
+                <span><i class="bi bi-download"></i> ${m.download_count || 0}</span>
+                <span><i class="bi bi-calendar3"></i> ${App.formatDate(m.upload_date)}</span>
+              </div>
+            </div>
+            <div class="material-actions">
+              <a href="preview-material.html?id=${m.id}" class="btn btn-sm btn-info flex-fill"><i class="bi bi-eye me-1"></i>View</a>
+              <button class="btn btn-sm ${isBookmarked ? 'btn-warning' : 'btn-secondary'}" onclick="toggleBookmark('${m.id}', this)" title="${isBookmarked ? 'Bookmarked' : 'Bookmark'}">
+                <i class="bi ${isBookmarked ? 'bi-bookmark-star-fill' : 'bi-bookmark-star'}"></i>
+              </button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+      document.getElementById('loadMoreContainer').style.display = filtered.length > displayLimit ? '' : 'none';
+    }
+
+    function loadMore() { displayLimit += 12; render(); }
+
+    // Filter listeners
+    document.getElementById('searchInput').addEventListener('input', App.debounce(() => { displayLimit = 12; render(); }));
+    ['filterSubject', 'filterSemester', 'filterType', 'sortBy'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => { displayLimit = 12; render(); });
+    });
+
+    async function toggleBookmark(materialId, btn) {
+      if (bookmarks.includes(materialId)) {
+        await Insforge.DB.delete('bookmarks', { student_id: `eq.${user.id}`, material_id: `eq.${materialId}` });
+        bookmarks = bookmarks.filter(id => id !== materialId);
+        btn.classList.replace('btn-warning', 'btn-secondary');
+        btn.querySelector('i').className = 'bi bi-bookmark-star';
+      } else {
+        await Insforge.DB.insert('bookmarks', { student_id: user.id, material_id: materialId });
+        bookmarks.push(materialId);
+        btn.classList.replace('btn-secondary', 'btn-warning');
+        btn.querySelector('i').className = 'bi bi-bookmark-star-fill';
+      }
+    }
+  </script>
+</body>
+</html>

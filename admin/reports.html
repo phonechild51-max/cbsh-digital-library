@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBSH Admin — Reports</title>
+  <link rel="icon" href="../assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+</head>
+<body>
+  <div id="sidebarContainer"></div>
+  <div class="cbsh-main">
+    <div id="topbarContainer"></div>
+    <div class="cbsh-content">
+
+      <div class="row g-4">
+        <!-- User Report -->
+        <div class="col-md-6 col-xl-4">
+          <div class="card h-100">
+            <div class="card-body text-center">
+              <div class="stat-icon amber mx-auto mb-3"><i class="bi bi-people-fill"></i></div>
+              <h4>User Report</h4>
+              <p style="font-size:0.875rem;">List of all registered users with their roles, status, and registration dates.</p>
+              <button class="btn btn-primary" onclick="generateUserReport()">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Generate PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Materials Report -->
+        <div class="col-md-6 col-xl-4">
+          <div class="card h-100">
+            <div class="card-body text-center">
+              <div class="stat-icon blue mx-auto mb-3"><i class="bi bi-journal-richtext"></i></div>
+              <h4>Materials Report</h4>
+              <p style="font-size:0.875rem;">All uploaded materials with subject, type, uploader, and download counts.</p>
+              <button class="btn btn-primary" onclick="generateMaterialReport()">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Generate PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quiz Performance Report -->
+        <div class="col-md-6 col-xl-4">
+          <div class="card h-100">
+            <div class="card-body text-center">
+              <div class="stat-icon green mx-auto mb-3"><i class="bi bi-graph-up-arrow"></i></div>
+              <h4>Quiz Performance</h4>
+              <p style="font-size:0.875rem;">Quiz attempt results with student scores, pass/fail rates, and averages.</p>
+              <button class="btn btn-primary" onclick="generateQuizReport()">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Generate PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Report -->
+        <div class="col-md-6 col-xl-4">
+          <div class="card h-100">
+            <div class="card-body text-center">
+              <div class="stat-icon red mx-auto mb-3"><i class="bi bi-clock-history"></i></div>
+              <h4>Activity Report</h4>
+              <p style="font-size:0.875rem;">System activity logs (last 30 days) with user actions and timestamps.</p>
+              <button class="btn btn-primary" onclick="generateActivityReport()">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Generate PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden Report Content for PDF Generation -->
+      <div id="reportContent" style="display:none;position:absolute;left:-9999px;background:#fff;color:#000;padding:30px;width:800px;font-family:Arial,sans-serif;">
+        <div id="reportHeader" style="text-align:center;margin-bottom:20px;">
+          <h2 style="margin:0;color:#1a1410;">CBSH Digital Library</h2>
+          <p style="color:#666;margin:5px 0;" id="reportDate"></p>
+          <h3 id="reportTitle" style="color:#D4922A;margin:10px 0;"></h3>
+          <hr>
+        </div>
+        <div id="reportBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/insforge.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/theme-toggle.js"></script>
+  <script src="../js/notifications.js"></script>
+
+  <script>
+    if (!AuthGuard.init('admin')) throw new Error('Not authorized');
+    App.initLayout('Reports', 'admin');
+
+    async function generatePDF(title, htmlContent) {
+      document.getElementById('reportTitle').textContent = title;
+      document.getElementById('reportDate').textContent = `Generated: ${new Date().toLocaleString('en-IN')}`;
+      document.getElementById('reportBody').innerHTML = htmlContent;
+
+      const el = document.getElementById('reportContent');
+      el.style.display = 'block';
+
+      try {
+        const canvas = await html2canvas(el, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const imgWidth = pageWidth - 20;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        let yPos = 10;
+        let remaining = imgHeight;
+        const pageHeight = pdf.internal.pageSize.getHeight() - 20;
+
+        // Handle multi-page
+        if (imgHeight <= pageHeight) {
+          pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+        } else {
+          let srcY = 0;
+          while (remaining > 0) {
+            const sliceHeight = Math.min(remaining, pageHeight);
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = (sliceHeight / imgHeight) * canvas.height;
+            const ctx = sliceCanvas.getContext('2d');
+            ctx.drawImage(canvas, 0, srcY, canvas.width, sliceCanvas.height, 0, 0, sliceCanvas.width, sliceCanvas.height);
+            pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', 10, 10, imgWidth, sliceHeight);
+            remaining -= sliceHeight;
+            srcY += sliceCanvas.height;
+            if (remaining > 0) pdf.addPage();
+          }
+        }
+
+        pdf.save(`CBSH_${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+        App.showSuccess('Report generated!');
+      } catch (err) {
+        console.error('PDF error:', err);
+        App.showError('Failed to generate PDF.');
+      }
+      el.style.display = 'none';
+    }
+
+    function tableHtml(headers, rows) {
+      return `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr>${headers.map(h => `<th style="border:1px solid #ddd;padding:8px;background:#f5f0eb;text-align:left;">${h}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(r => `<tr>${r.map(c => `<td style="border:1px solid #ddd;padding:6px;">${c}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>`;
+    }
+
+    async function generateUserReport() {
+      App.showLoading();
+      const res = await Insforge.DB.query('users', { order: 'created_at.desc' });
+      const users = res.data || [];
+      const html = tableHtml(
+        ['Name', 'Email', 'Role', 'Status', 'Registered'],
+        users.map(u => [u.name, u.email, u.role, u.status, App.formatDate(u.created_at)])
+      );
+      App.hideLoading();
+      generatePDF('User Report', html);
+    }
+
+    async function generateMaterialReport() {
+      App.showLoading();
+      const [matRes, usersRes] = await Promise.all([
+        Insforge.DB.query('materials', { order: 'upload_date.desc' }),
+        Insforge.DB.query('users', { select: 'id,name' })
+      ]);
+      const materials = matRes.data || [];
+      const uMap = {};
+      (usersRes.data || []).forEach(u => uMap[u.id] = u.name);
+      const html = tableHtml(
+        ['Title', 'Subject', 'Type', 'Uploaded By', 'Downloads', 'Date'],
+        materials.map(m => [m.title, m.subject, m.file_type, uMap[m.uploaded_by] || '—', m.download_count || 0, App.formatDate(m.upload_date)])
+      );
+      App.hideLoading();
+      generatePDF('Materials Report', html);
+    }
+
+    async function generateQuizReport() {
+      App.showLoading();
+      const [attRes, usersRes, quizRes] = await Promise.all([
+        Insforge.DB.query('quiz_attempts', { order: 'attempt_date.desc' }),
+        Insforge.DB.query('users', { select: 'id,name' }),
+        Insforge.DB.query('quizzes', { select: 'id,title' })
+      ]);
+      const attempts = attRes.data || [];
+      const uMap = {}, qMap = {};
+      (usersRes.data || []).forEach(u => uMap[u.id] = u.name);
+      (quizRes.data || []).forEach(q => qMap[q.id] = q.title);
+      const html = tableHtml(
+        ['Student', 'Quiz', 'Score', 'Percentage', 'Result', 'Date'],
+        attempts.map(a => [uMap[a.student_id] || '—', qMap[a.quiz_id] || '—', `${a.score}/${a.total_questions}`, `${a.percentage}%`, a.status, App.formatDate(a.attempt_date)])
+      );
+      App.hideLoading();
+      generatePDF('Quiz Performance Report', html);
+    }
+
+    async function generateActivityReport() {
+      App.showLoading();
+      const res = await Insforge.DB.query('activity_logs', { order: 'created_at.desc', limit: 200 });
+      const logs = res.data || [];
+      const html = tableHtml(
+        ['Time', 'User', 'Role', 'Action', 'Details', 'Status'],
+        logs.map(l => [App.formatDate(l.created_at, { hour: '2-digit', minute: '2-digit' }), l.user_name || '—', l.role || '—', l.action, l.details || '—', l.status])
+      );
+      App.hideLoading();
+      generatePDF('Activity Report', html);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBSH Teacher — Create Quiz</title>
+  <link rel="icon" href="../assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+</head>
+<body>
+  <div id="sidebarContainer"></div>
+  <div class="cbsh-main">
+    <div id="topbarContainer"></div>
+    <div class="cbsh-content">
+
+      <!-- Quiz Details -->
+      <div class="card mb-4">
+        <div class="card-header"><i class="bi bi-patch-question-fill me-2"></i>Quiz Details</div>
+        <div class="card-body">
+          <form id="quizDetailsForm">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="quizTitle" class="form-label">Quiz Title</label>
+                <input type="text" class="form-control" id="quizTitle" placeholder="e.g., Physics Mid-Term" required>
+              </div>
+              <div class="col-md-3">
+                <label for="quizSubject" class="form-label">Subject</label>
+                <select class="form-select" id="quizSubject" required></select>
+              </div>
+              <div class="col-md-3">
+                <label for="quizDuration" class="form-label">Duration (minutes)</label>
+                <input type="number" class="form-control" id="quizDuration" min="5" max="180" value="30" required>
+              </div>
+              <div class="col-md-6">
+                <label for="quizDescription" class="form-label">Description <span class="text-muted" style="font-size:0.75rem;">(optional)</span></label>
+                <textarea class="form-control" id="quizDescription" rows="2" placeholder="Brief instructions for students"></textarea>
+              </div>
+              <div class="col-md-3">
+                <label for="quizPassing" class="form-label">Passing Marks (%)</label>
+                <input type="number" class="form-control" id="quizPassing" min="1" max="100" value="40" required>
+              </div>
+              <div class="col-md-3">
+                <label for="quizMaxAttempts" class="form-label">Max Attempts</label>
+                <input type="number" class="form-control" id="quizMaxAttempts" min="1" max="10" value="1">
+              </div>
+              <div class="col-md-4">
+                <div class="form-check form-switch mt-2">
+                  <input class="form-check-input" type="checkbox" id="quizRandomize">
+                  <label class="form-check-label" for="quizRandomize">Randomize questions</label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-check form-switch mt-2">
+                  <input class="form-check-input" type="checkbox" id="quizShowResults" checked>
+                  <label class="form-check-label" for="quizShowResults">Show results immediately</label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-check form-switch mt-2">
+                  <input class="form-check-input" type="checkbox" id="quizAllowReview" checked>
+                  <label class="form-check-label" for="quizAllowReview">Allow answer review</label>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Questions -->
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Questions <span class="badge bg-amber ms-1" id="questionCount">0</span></span>
+          <button class="btn btn-primary btn-sm" onclick="openQuestionModal()"><i class="bi bi-plus-lg me-1"></i>Add Question</button>
+        </div>
+        <div class="card-body p-0" id="questionsList">
+          <div class="empty-state">
+            <i class="bi bi-patch-question"></i>
+            <h5>No questions added</h5>
+            <p>Click "Add Question" to start building your quiz.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="d-flex gap-2">
+        <button class="btn btn-secondary btn-lg" onclick="saveQuiz('draft')">
+          <i class="bi bi-save me-1"></i>Save as Draft
+        </button>
+        <button class="btn btn-primary btn-lg" onclick="saveQuiz('published')">
+          <i class="bi bi-send me-1"></i>Publish Quiz
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Question Modal -->
+  <div class="modal fade" id="questionModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="qModalTitle">Add Question</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="qEditIndex" value="-1">
+          <div class="mb-3">
+            <label for="qText" class="form-label">Question Text</label>
+            <textarea class="form-control" id="qText" rows="2" placeholder="Enter the question" required></textarea>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Option A</label>
+              <input type="text" class="form-control" id="qOptA" placeholder="Option A" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Option B</label>
+              <input type="text" class="form-control" id="qOptB" placeholder="Option B" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Option C</label>
+              <input type="text" class="form-control" id="qOptC" placeholder="Option C" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Option D</label>
+              <input type="text" class="form-control" id="qOptD" placeholder="Option D" required>
+            </div>
+          </div>
+          <div class="row g-3 mt-1">
+            <div class="col-md-6">
+              <label for="qCorrect" class="form-label">Correct Answer</label>
+              <select class="form-select" id="qCorrect" required>
+                <option value="">Select correct answer</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="qMarks" class="form-label">Marks</label>
+              <input type="number" class="form-control" id="qMarks" min="1" value="1">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" onclick="saveQuestion()"><i class="bi bi-check-lg me-1"></i>Save Question</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/insforge.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/theme-toggle.js"></script>
+  <script src="../js/notifications.js"></script>
+
+  <script>
+    if (!AuthGuard.init('teacher')) throw new Error('Not authorized');
+    App.initLayout('Create Quiz', 'teacher');
+    App.populateSubjects('quizSubject');
+
+    const user = AuthGuard.getUser();
+    let questions = [];
+    let questionModal;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      questionModal = new bootstrap.Modal(document.getElementById('questionModal'));
+    });
+
+    function openQuestionModal(editIdx = -1) {
+      document.getElementById('qEditIndex').value = editIdx;
+      if (editIdx >= 0) {
+        const q = questions[editIdx];
+        document.getElementById('qModalTitle').textContent = 'Edit Question';
+        document.getElementById('qText').value = q.question_text;
+        document.getElementById('qOptA').value = q.option_a;
+        document.getElementById('qOptB').value = q.option_b;
+        document.getElementById('qOptC').value = q.option_c;
+        document.getElementById('qOptD').value = q.option_d;
+        document.getElementById('qCorrect').value = q.correct_answer;
+        document.getElementById('qMarks').value = q.marks;
+      } else {
+        document.getElementById('qModalTitle').textContent = 'Add Question';
+        ['qText', 'qOptA', 'qOptB', 'qOptC', 'qOptD'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('qCorrect').value = '';
+        document.getElementById('qMarks').value = 1;
+      }
+      questionModal.show();
+    }
+
+    function saveQuestion() {
+      const q = {
+        question_text: document.getElementById('qText').value.trim(),
+        option_a: document.getElementById('qOptA').value.trim(),
+        option_b: document.getElementById('qOptB').value.trim(),
+        option_c: document.getElementById('qOptC').value.trim(),
+        option_d: document.getElementById('qOptD').value.trim(),
+        correct_answer: document.getElementById('qCorrect').value,
+        marks: parseInt(document.getElementById('qMarks').value) || 1
+      };
+
+      if (!q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d || !q.correct_answer) {
+        App.showError('Please fill in all fields.'); return;
+      }
+
+      const editIdx = parseInt(document.getElementById('qEditIndex').value);
+      if (editIdx >= 0) {
+        questions[editIdx] = q;
+      } else {
+        questions.push(q);
+      }
+
+      questionModal.hide();
+      renderQuestions();
+    }
+
+    function renderQuestions() {
+      const count = document.getElementById('questionCount');
+      count.textContent = questions.length;
+
+      const container = document.getElementById('questionsList');
+      if (questions.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="bi bi-patch-question"></i><h5>No questions added</h5><p>Click "Add Question" to start.</p></div>';
+        return;
+      }
+
+      container.innerHTML = questions.map((q, i) => `
+        <div class="d-flex align-items-start gap-3 p-3 ${i > 0 ? 'border-top' : ''}" style="border-color:var(--border-divider)!important;">
+          <span class="badge bg-amber" style="min-width:28px;">${i + 1}</span>
+          <div class="flex-grow-1">
+            <p style="margin:0;font-weight:500;">${App.escapeHtml(q.question_text)}</p>
+            <div class="row g-2 mt-1" style="font-size:0.8125rem;">
+              ${['A', 'B', 'C', 'D'].map(opt => {
+                const val = q['option_' + opt.toLowerCase()];
+                const isCorrect = q.correct_answer === opt;
+                return `<div class="col-6"><span class="${isCorrect ? 'text-success fw-bold' : ''}">${opt}. ${App.escapeHtml(val)} ${isCorrect ? '✓' : ''}</span></div>`;
+              }).join('')}
+            </div>
+            <span style="font-size:0.75rem;color:var(--text-disabled);">Marks: ${q.marks}</span>
+          </div>
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-info" onclick="openQuestionModal(${i})"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-danger" onclick="removeQuestion(${i})"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function removeQuestion(idx) {
+      questions.splice(idx, 1);
+      renderQuestions();
+    }
+
+    async function saveQuiz(status) {
+      const title = document.getElementById('quizTitle').value.trim();
+      const subject = document.getElementById('quizSubject').value;
+      const duration = parseInt(document.getElementById('quizDuration').value);
+      const passingPct = parseInt(document.getElementById('quizPassing').value);
+
+      if (!title || !subject || !duration) { App.showError('Please fill in quiz details.'); return; }
+      if (questions.length === 0) { App.showError('Please add at least one question.'); return; }
+
+      const totalMarks = questions.reduce((s, q) => s + q.marks, 0);
+      const passingMarks = Math.ceil(totalMarks * passingPct / 100);
+
+      App.showLoading();
+
+      try {
+        // Insert quiz
+        const quizRes = await Insforge.DB.insert('quizzes', {
+          title,
+          subject,
+          description: document.getElementById('quizDescription').value.trim() || null,
+          duration,
+          passing_marks: passingMarks,
+          max_attempts: parseInt(document.getElementById('quizMaxAttempts').value) || 1,
+          total_marks: totalMarks,
+          randomize_questions: document.getElementById('quizRandomize').checked,
+          show_results_immediately: document.getElementById('quizShowResults').checked,
+          allow_review: document.getElementById('quizAllowReview').checked,
+          status,
+          created_by: user.id
+        });
+
+        if (quizRes.error) throw new Error(quizRes.error.message);
+        const quizId = quizRes.data?.[0]?.id;
+        if (!quizId) throw new Error('Failed to get quiz ID');
+
+        // Insert questions
+        const questionRecords = questions.map((q, i) => ({ ...q, quiz_id: quizId, question_order: i + 1 }));
+        const qRes = await Insforge.DB.insert('questions', questionRecords);
+        if (qRes.error) throw new Error(qRes.error.message);
+
+        AuthGuard.logActivity('CREATE_QUIZ', `Created quiz: ${title} (${questions.length} questions, ${status})`);
+
+        App.hideLoading();
+        await Swal.fire({
+          icon: 'success',
+          title: status === 'published' ? 'Quiz Published!' : 'Quiz Saved as Draft',
+          text: `"${title}" with ${questions.length} questions.`,
+          confirmButtonText: 'Go to My Quizzes'
+        });
+
+        window.location.href = 'my-quizzes.html';
+      } catch (err) {
+        App.hideLoading();
+        console.error('Save quiz error:', err);
+        App.showError(err.message || 'Failed to save quiz.');
+      }
+    }
+  </script>
+</body>
+</html>

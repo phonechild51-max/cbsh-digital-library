@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBSH Admin — View Materials</title>
+  <link rel="icon" href="../assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/datatables.net-bs5@2.2.2/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+</head>
+<body>
+  <div id="sidebarContainer"></div>
+  <div class="cbsh-main">
+    <div id="topbarContainer"></div>
+    <div class="cbsh-content">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>All Materials</span>
+          <span class="badge bg-amber" id="totalCount">0</span>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover" id="materialsTable" style="width:100%;">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Subject</th>
+                  <th>Sem</th>
+                  <th>Type</th>
+                  <th>Uploaded By</th>
+                  <th>Date</th>
+                  <th>Downloads</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="materialsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.2.2/js/dataTables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/datatables.net-bs5@2.2.2/js/dataTables.bootstrap5.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/insforge.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/theme-toggle.js"></script>
+  <script src="../js/notifications.js"></script>
+
+  <script>
+    if (!AuthGuard.init('admin')) throw new Error('Not authorized');
+    App.initLayout('View Materials', 'admin');
+
+    let dt = null;
+    let usersCache = {};
+
+    (async function loadMaterials() {
+      // Fetch materials and users
+      const [matRes, usersRes] = await Promise.all([
+        Insforge.DB.query('materials', { order: 'upload_date.desc' }),
+        Insforge.DB.query('users', { select: 'id,name' })
+      ]);
+
+      const materials = matRes.data || [];
+      const users = usersRes.data || [];
+      users.forEach(u => usersCache[u.id] = u.name);
+
+      document.getElementById('totalCount').textContent = materials.length;
+
+      const tbody = document.getElementById('materialsBody');
+      tbody.innerHTML = materials.map(m => {
+        const uploaderName = usersCache[m.uploaded_by] || 'Unknown';
+        const typeIcon = m.file_type === 'pdf' ? 'bi-file-earmark-pdf text-danger' : 'bi-file-earmark-image text-amber';
+        return `<tr>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi ${typeIcon}"></i>
+              <span>${App.escapeHtml(m.title)}</span>
+            </div>
+          </td>
+          <td><span class="badge bg-secondary">${App.escapeHtml(m.subject)}</span></td>
+          <td>${m.semester || '—'}</td>
+          <td>${m.file_type?.toUpperCase()}</td>
+          <td>${App.escapeHtml(uploaderName)}</td>
+          <td>${App.formatDate(m.upload_date)}</td>
+          <td><span class="font-mono">${m.download_count || 0}</span></td>
+          <td>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-info" onclick="downloadMaterial('${m.insforge_file_key}')" title="Download">
+                <i class="bi bi-download"></i>
+              </button>
+              <button class="btn btn-sm btn-danger" onclick="deleteMaterial('${m.id}', '${m.insforge_file_key}')" title="Delete">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      // Initialize DataTable
+      dt = $('#materialsTable').DataTable({
+        pageLength: 15,
+        order: [[5, 'desc']],
+        language: { emptyTable: 'No materials uploaded yet', search: 'Search:' }
+      });
+    })();
+
+    async function downloadMaterial(fileKey) {
+      const res = await Insforge.Storage.getDownloadUrl(fileKey);
+      if (res.error) { App.showError('Failed to get download link.'); return; }
+      window.open(res.data?.url || res.data?.downloadUrl, '_blank');
+    }
+
+    async function deleteMaterial(id, fileKey) {
+      const confirmed = await App.confirm('Delete Material', 'This will permanently remove the material and its file.', 'Delete', 'warning');
+      if (!confirmed) return;
+
+      App.showLoading();
+      await Insforge.Storage.delete(fileKey);
+      await Insforge.DB.delete('materials', { id: `eq.${id}` });
+      AuthGuard.logActivity('DELETE_MATERIAL', `Deleted material ${id}`);
+      App.hideLoading();
+
+      App.showSuccess('Material deleted.');
+      if (dt) dt.destroy();
+      location.reload();
+    }
+  </script>
+</body>
+</html>

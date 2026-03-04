@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBSH Admin — Student Quiz Tracking</title>
+  <link rel="icon" href="../assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/datatables.net-bs5@2.2.2/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+</head>
+<body>
+  <div id="sidebarContainer"></div>
+  <div class="cbsh-main">
+    <div id="topbarContainer"></div>
+    <div class="cbsh-content">
+
+      <!-- Filters -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+              <label for="filterStudent" class="form-label">Student</label>
+              <select class="form-select" id="filterStudent"><option value="">All Students</option></select>
+            </div>
+            <div class="col-md-4">
+              <label for="filterQuiz" class="form-label">Quiz</label>
+              <select class="form-select" id="filterQuiz"><option value="">All Quizzes</option></select>
+            </div>
+            <div class="col-md-4">
+              <label for="filterStatus" class="form-label">Result</label>
+              <select class="form-select" id="filterStatus">
+                <option value="">All</option>
+                <option value="pass">Passed</option>
+                <option value="fail">Failed</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Table -->
+      <div class="card">
+        <div class="card-header">Quiz Attempts</div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover" id="trackingTable" style="width:100%;">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Quiz</th>
+                  <th>Score</th>
+                  <th>Percentage</th>
+                  <th>Result</th>
+                  <th>Time Taken</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="trackingBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.2.2/js/dataTables.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/datatables.net-bs5@2.2.2/js/dataTables.bootstrap5.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/insforge.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/theme-toggle.js"></script>
+  <script src="../js/notifications.js"></script>
+
+  <script>
+    if (!AuthGuard.init('admin')) throw new Error('Not authorized');
+    App.initLayout('Student Quiz Tracking', 'admin');
+
+    let allAttempts = [], studentsMap = {}, quizzesMap = {}, dt = null;
+
+    (async function load() {
+      const [attRes, usersRes, quizRes] = await Promise.all([
+        Insforge.DB.query('quiz_attempts', { order: 'attempt_date.desc' }),
+        Insforge.DB.query('users', { filters: { role: 'eq.student', status: 'eq.approved' }, select: 'id,name' }),
+        Insforge.DB.query('quizzes', { select: 'id,title' })
+      ]);
+
+      allAttempts = attRes.data || [];
+      (usersRes.data || []).forEach(u => studentsMap[u.id] = u.name);
+      (quizRes.data || []).forEach(q => quizzesMap[q.id] = q.title);
+
+      // Populate filters
+      const studentSelect = document.getElementById('filterStudent');
+      Object.entries(studentsMap).forEach(([id, name]) => {
+        studentSelect.innerHTML += `<option value="${id}">${App.escapeHtml(name)}</option>`;
+      });
+      const quizSelect = document.getElementById('filterQuiz');
+      Object.entries(quizzesMap).forEach(([id, title]) => {
+        quizSelect.innerHTML += `<option value="${id}">${App.escapeHtml(title)}</option>`;
+      });
+
+      renderTable(allAttempts);
+
+      // Filter listeners
+      ['filterStudent', 'filterQuiz', 'filterStatus'].forEach(id => {
+        document.getElementById(id).addEventListener('change', applyFilters);
+      });
+    })();
+
+    function applyFilters() {
+      const studentId = document.getElementById('filterStudent').value;
+      const quizId = document.getElementById('filterQuiz').value;
+      const status = document.getElementById('filterStatus').value;
+
+      let filtered = [...allAttempts];
+      if (studentId) filtered = filtered.filter(a => a.student_id === studentId);
+      if (quizId) filtered = filtered.filter(a => a.quiz_id === quizId);
+      if (status) filtered = filtered.filter(a => a.status === status);
+
+      if (dt) dt.destroy();
+      renderTable(filtered);
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('trackingBody');
+      tbody.innerHTML = data.map(a => {
+        const statusBadge = a.status === 'pass'
+          ? '<span class="badge bg-success">Passed</span>'
+          : '<span class="badge bg-danger">Failed</span>';
+        const timeTaken = a.time_taken ? `${Math.floor(a.time_taken / 60)}m ${a.time_taken % 60}s` : '—';
+        const pctColor = a.percentage >= 70 ? 'var(--success)' : a.percentage >= 50 ? 'var(--warning)' : 'var(--danger)';
+
+        return `<tr>
+          <td>${App.escapeHtml(studentsMap[a.student_id] || 'Unknown')}</td>
+          <td>${App.escapeHtml(quizzesMap[a.quiz_id] || 'Unknown')}</td>
+          <td><span class="font-mono">${a.score}/${a.total_questions}</span></td>
+          <td><span class="font-mono" style="color:${pctColor}">${a.percentage}%</span></td>
+          <td>${statusBadge}</td>
+          <td>${timeTaken}</td>
+          <td>${App.formatDate(a.attempt_date)}</td>
+        </tr>`;
+      }).join('');
+
+      dt = $('#trackingTable').DataTable({
+        pageLength: 20,
+        order: [[6, 'desc']],
+        language: { emptyTable: 'No quiz attempts found' }
+      });
+    }
+  </script>
+</body>
+</html>

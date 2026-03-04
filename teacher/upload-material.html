@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBSH Teacher — Upload Material</title>
+  <link rel="icon" href="../assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <style>
+    .drop-zone {
+      border: 2px dashed var(--border-input);
+      border-radius: 16px;
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: var(--bg-input);
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent-amber);
+      background: var(--accent-amber-subtle);
+    }
+    .drop-zone i { font-size: 3rem; color: var(--text-disabled); margin-bottom: 1rem; display: block; }
+    .drop-zone.drag-over i { color: var(--accent-amber); }
+    .file-preview { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 10px; margin-top: 1rem; }
+    .file-preview i { font-size: 2rem; }
+  </style>
+</head>
+<body>
+  <div id="sidebarContainer"></div>
+  <div class="cbsh-main">
+    <div id="topbarContainer"></div>
+    <div class="cbsh-content">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-cloud-arrow-up-fill me-2"></i>Upload Study Material</div>
+        <div class="card-body">
+          <form id="uploadForm" novalidate>
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label for="matTitle" class="form-label">Title</label>
+                <input type="text" class="form-control" id="matTitle" placeholder="e.g., Linear Algebra Notes — Chapter 3" required>
+              </div>
+              <div class="col-md-4">
+                <label for="matSubject" class="form-label">Subject</label>
+                <select class="form-select" id="matSubject" required></select>
+              </div>
+              <div class="col-md-8">
+                <label for="matDescription" class="form-label">Description <span class="text-muted" style="font-size:0.75rem;">(optional)</span></label>
+                <textarea class="form-control" id="matDescription" rows="2" placeholder="Brief description of this material"></textarea>
+              </div>
+              <div class="col-md-4">
+                <label for="matSemester" class="form-label">Semester</label>
+                <select class="form-select" id="matSemester"></select>
+                <label for="matTags" class="form-label mt-3">Tags <span class="text-muted" style="font-size:0.75rem;">(comma separated)</span></label>
+                <input type="text" class="form-control" id="matTags" placeholder="notes, chapter-3, exam-prep">
+              </div>
+              <div class="col-12">
+                <label class="form-label">File (PDF or Image)</label>
+                <div class="drop-zone" id="dropZone">
+                  <i class="bi bi-cloud-arrow-up"></i>
+                  <p style="color:var(--text-secondary);margin:0;">Drag & drop your file here, or <span style="color:var(--accent-amber);font-weight:600;">click to browse</span></p>
+                  <p style="font-size:0.75rem;color:var(--text-disabled);margin-top:0.5rem;">PDF, JPG, PNG • Max 25MB</p>
+                </div>
+                <input type="file" id="matFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+                <div id="filePreview" style="display:none;"></div>
+              </div>
+              <div class="col-12">
+                <div class="progress" id="uploadProgress" style="display:none;">
+                  <div class="progress-bar" id="uploadBar" style="width:0%;"></div>
+                </div>
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn">
+                  <span id="uploadBtnText"><i class="bi bi-upload me-1"></i>Upload Material</span>
+                  <span id="uploadSpinner" class="cbsh-spinner ms-2" style="display:none;"></span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/insforge.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/theme-toggle.js"></script>
+  <script src="../js/notifications.js"></script>
+
+  <script>
+    if (!AuthGuard.init('teacher')) throw new Error('Not authorized');
+    App.initLayout('Upload Material', 'teacher');
+    App.populateSubjects('matSubject');
+    App.populateSemesters('matSemester');
+
+    const user = AuthGuard.getUser();
+    let selectedFile = null;
+
+    // Drag & Drop
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('matFile');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+    function handleFile(file) {
+      const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
+      if (!allowed.includes(file.type)) { App.showError('Only PDF, JPG, and PNG files are allowed.'); return; }
+      if (file.size > 25 * 1024 * 1024) { App.showError('File must be under 25MB.'); return; }
+
+      selectedFile = file;
+      const icon = file.type === 'application/pdf' ? 'bi-file-earmark-pdf text-danger' : 'bi-file-earmark-image text-amber';
+      document.getElementById('filePreview').style.display = 'block';
+      document.getElementById('filePreview').innerHTML = `
+        <div class="file-preview">
+          <i class="bi ${icon}"></i>
+          <div class="flex-grow-1">
+            <strong>${App.escapeHtml(file.name)}</strong>
+            <br><span style="font-size:0.75rem;color:var(--text-disabled);">${App.formatFileSize(file.size)}</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-danger" onclick="removeFile()"><i class="bi bi-x-lg"></i></button>
+        </div>`;
+      dropZone.style.display = 'none';
+    }
+
+    function removeFile() {
+      selectedFile = null;
+      fileInput.value = '';
+      document.getElementById('filePreview').style.display = 'none';
+      dropZone.style.display = 'block';
+    }
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const title = document.getElementById('matTitle').value.trim();
+      const subject = document.getElementById('matSubject').value;
+      const semester = document.getElementById('matSemester').value;
+      const description = document.getElementById('matDescription').value.trim();
+      const tags = document.getElementById('matTags').value.trim();
+
+      if (!title || !subject) { App.showError('Title and subject are required.'); return; }
+      if (!selectedFile) { App.showError('Please select a file to upload.'); return; }
+
+      const btn = document.getElementById('uploadBtn');
+      btn.disabled = true;
+      document.getElementById('uploadBtnText').innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Uploading...';
+      document.getElementById('uploadSpinner').style.display = 'inline-block';
+      document.getElementById('uploadProgress').style.display = 'block';
+
+      try {
+        // Upload file to storage
+        const folder = `materials/${subject.toLowerCase().replace(/\s+/g, '-')}`;
+        const uploadRes = await Insforge.Storage.upload(selectedFile, folder, (pct) => {
+          document.getElementById('uploadBar').style.width = pct + '%';
+        });
+
+        if (uploadRes.error) throw new Error(uploadRes.error.message || 'Upload failed');
+
+        const fileKey = uploadRes.data?.key;
+        const fileUrl = Insforge.Storage.objectUrl(fileKey);
+        const fileType = selectedFile.type === 'application/pdf' ? 'pdf' : 'image';
+
+        // Insert material record
+        const matRes = await Insforge.DB.insert('materials', {
+          title,
+          description: description || null,
+          subject,
+          semester: semester ? parseInt(semester) : null,
+          tags: tags || null,
+          insforge_file_key: fileKey,
+          insforge_url: fileUrl,
+          file_type: fileType,
+          file_size: selectedFile.size,
+          mime_type: selectedFile.type,
+          uploaded_by: user.id
+        });
+
+        if (matRes.error) throw new Error(matRes.error.message || 'Failed to save material');
+
+        AuthGuard.logActivity('UPLOAD_MATERIAL', `Uploaded: ${title} (${subject})`);
+
+        await Swal.fire({
+          icon: 'success',
+          title: 'Material Uploaded!',
+          text: `"${title}" is now available in the library.`,
+          confirmButtonText: 'Upload Another'
+        });
+
+        // Reset form
+        document.getElementById('uploadForm').reset();
+        removeFile();
+        App.populateSubjects('matSubject');
+        App.populateSemesters('matSemester');
+
+      } catch (err) {
+        console.error('Upload error:', err);
+        App.showError(err.message || 'Upload failed. Please try again.');
+      }
+
+      btn.disabled = false;
+      document.getElementById('uploadBtnText').innerHTML = '<i class="bi bi-upload me-1"></i>Upload Material';
+      document.getElementById('uploadSpinner').style.display = 'none';
+      document.getElementById('uploadProgress').style.display = 'none';
+      document.getElementById('uploadBar').style.width = '0%';
+    });
+  </script>
+</body>
+</html>

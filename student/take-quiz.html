@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBSH Student — Take Quiz</title>
+  <link rel="icon" href="../assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <style>
+    .quiz-timer { position:sticky;top:0;z-index:50;background:var(--bg-card);border-bottom:1px solid var(--border-card);padding:0.75rem 1.5rem;display:flex;justify-content:space-between;align-items:center; }
+    .quiz-timer .time { font-family:var(--font-mono);font-size:1.5rem;font-weight:700; }
+    .quiz-timer .time.warning { color:var(--warning); }
+    .quiz-timer .time.danger { color:var(--danger);animation: pulse 1s infinite; }
+    .question-card { background:var(--bg-card);border:1px solid var(--border-card);border-radius:16px;padding:1.5rem;margin-bottom:1rem; }
+    .question-card.answered { border-left:3px solid var(--accent-amber); }
+    .option-btn { display:block;width:100%;text-align:left;padding:0.75rem 1rem;margin:0.5rem 0;border-radius:10px;border:1px solid var(--border-input);background:var(--bg-input);color:var(--text-primary);cursor:pointer;transition:all 0.2s ease;font-size:0.9rem; }
+    .option-btn:hover { border-color:var(--accent-amber);background:var(--accent-amber-subtle); }
+    .option-btn.selected { border-color:var(--accent-amber);background:var(--accent-amber-subtle);font-weight:600; }
+    .question-nav { display:flex;flex-wrap:wrap;gap:6px; }
+    .question-nav button { width:36px;height:36px;border-radius:8px;border:1px solid var(--border-input);background:var(--bg-input);color:var(--text-primary);cursor:pointer;font-size:0.8125rem;font-weight:600; }
+    .question-nav button.answered { background:var(--accent-amber);color:#000;border-color:var(--accent-amber); }
+    .question-nav button.current { box-shadow:0 0 0 2px var(--accent-steel-blue); }
+  </style>
+</head>
+<body>
+  <div class="cbsh-content" style="margin-left:0;padding:0;">
+    <!-- Timer Bar -->
+    <div class="quiz-timer">
+      <div>
+        <span style="font-size:0.875rem;color:var(--text-secondary);" id="quizTitle">Quiz</span>
+        <br><span style="font-size:0.75rem;color:var(--text-disabled);">Question <span id="currentQ">1</span> of <span id="totalQ">0</span></span>
+      </div>
+      <div class="time" id="timerDisplay">00:00</div>
+    </div>
+
+    <div class="container-fluid" style="max-width:900px;padding:1.5rem;">
+      <!-- Question Display -->
+      <div id="questionArea"></div>
+
+      <!-- Navigation -->
+      <div class="d-flex justify-content-between align-items-center mt-3">
+        <button class="btn btn-secondary" id="prevBtn" onclick="navigate(-1)" disabled><i class="bi bi-arrow-left me-1"></i>Previous</button>
+        <div class="question-nav" id="questionNav"></div>
+        <button class="btn btn-secondary" id="nextBtn" onclick="navigate(1)">Next<i class="bi bi-arrow-right ms-1"></i></button>
+      </div>
+
+      <!-- Submit -->
+      <div class="text-center mt-4">
+        <button class="btn btn-primary btn-lg px-5" onclick="submitQuiz()"><i class="bi bi-check-circle me-1"></i>Submit Quiz</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/insforge.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem('cbsh_user'));
+    if (!user) { location.href = '../index.html'; throw new Error('No session'); }
+
+    const quizId = new URLSearchParams(window.location.search).get('id');
+    let quiz = null, questions = [], answers = {}, currentIndex = 0;
+    let timerInterval, startTime, timeRemaining;
+
+    // Prevent leaving page
+    window.addEventListener('beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; });
+
+    (async function init() {
+      const [qRes, questRes] = await Promise.all([
+        Insforge.DB.query('quizzes', { filters: { id: `eq.${quizId}` }, limit: 1 }),
+        Insforge.DB.query('questions', { filters: { quiz_id: `eq.${quizId}` }, order: 'question_order.asc' })
+      ]);
+
+      quiz = qRes.data?.[0];
+      questions = questRes.data || [];
+
+      if (!quiz || questions.length === 0) {
+        await Swal.fire({ icon: 'error', title: 'Error', text: 'Quiz not found or has no questions.' });
+        location.href = 'available-quizzes.html';
+        return;
+      }
+
+      // Randomize if needed
+      if (quiz.randomize_questions) {
+        for (let i = questions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [questions[i], questions[j]] = [questions[j], questions[i]];
+        }
+      }
+
+      document.getElementById('quizTitle').textContent = quiz.title;
+      document.getElementById('totalQ').textContent = questions.length;
+      document.title = `CBSH — ${quiz.title}`;
+
+      // Start timer
+      timeRemaining = quiz.duration * 60;
+      startTime = Date.now();
+      updateTimer();
+      timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        timeRemaining = (quiz.duration * 60) - elapsed;
+        if (timeRemaining <= 0) { clearInterval(timerInterval); autoSubmit(); }
+        else updateTimer();
+      }, 1000);
+
+      buildNav();
+      showQuestion(0);
+    })();
+
+    function updateTimer() {
+      const m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+      const s = (timeRemaining % 60).toString().padStart(2, '0');
+      const display = document.getElementById('timerDisplay');
+      display.textContent = `${m}:${s}`;
+      display.className = 'time' + (timeRemaining <= 60 ? ' danger' : timeRemaining <= 300 ? ' warning' : '');
+    }
+
+    function buildNav() {
+      document.getElementById('questionNav').innerHTML = questions.map((_, i) =>
+        `<button id="navBtn${i}" onclick="showQuestion(${i})">${i + 1}</button>`
+      ).join('');
+    }
+
+    function showQuestion(idx) {
+      currentIndex = idx;
+      const q = questions[idx];
+      document.getElementById('currentQ').textContent = idx + 1;
+      document.getElementById('prevBtn').disabled = idx === 0;
+      document.getElementById('nextBtn').disabled = idx === questions.length - 1;
+
+      // Update nav highlights
+      document.querySelectorAll('.question-nav button').forEach((btn, i) => {
+        btn.classList.toggle('current', i === idx);
+        btn.classList.toggle('answered', !!answers[questions[i].id]);
+      });
+
+      const selected = answers[q.id] || '';
+      document.getElementById('questionArea').innerHTML = `
+        <div class="question-card ${selected ? 'answered' : ''}">
+          <div class="d-flex justify-content-between mb-3">
+            <span class="badge bg-amber">Q${idx + 1}</span>
+            <span style="font-size:0.75rem;color:var(--text-disabled);">${q.marks} mark${q.marks > 1 ? 's' : ''}</span>
+          </div>
+          <p style="font-size:1.05rem;font-weight:500;margin-bottom:1rem;">${App.escapeHtml(q.question_text)}</p>
+          ${['A', 'B', 'C', 'D'].map(opt => {
+            const val = q['option_' + opt.toLowerCase()];
+            return `<button class="option-btn ${selected === opt ? 'selected' : ''}" onclick="selectAnswer('${q.id}', '${opt}', this)">
+              <strong>${opt}.</strong> ${App.escapeHtml(val)}
+            </button>`;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function selectAnswer(questionId, option, btn) {
+      answers[questionId] = option;
+      document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      document.querySelector('.question-card').classList.add('answered');
+
+      // Update nav
+      const idx = questions.findIndex(q => q.id === questionId);
+      document.getElementById(`navBtn${idx}`).classList.add('answered');
+    }
+
+    function navigate(dir) { showQuestion(currentIndex + dir); }
+
+    async function autoSubmit() {
+      await Swal.fire({ icon: 'warning', title: 'Time\'s Up!', text: 'Your quiz is being submitted automatically.', timer: 2000, showConfirmButton: false });
+      await doSubmit();
+    }
+
+    async function submitQuiz() {
+      const unanswered = questions.filter(q => !answers[q.id]).length;
+      let msg = 'Are you sure you want to submit?';
+      if (unanswered > 0) msg += ` You have ${unanswered} unanswered question${unanswered > 1 ? 's' : ''}.`;
+
+      const confirmed = await App.confirm('Submit Quiz', msg, 'Submit', unanswered > 0 ? 'warning' : 'question');
+      if (!confirmed) return;
+      await doSubmit();
+    }
+
+    async function doSubmit() {
+      clearInterval(timerInterval);
+      window.removeEventListener('beforeunload', () => {});
+      App.showLoading();
+
+      // Calculate score
+      let score = 0, totalMarks = 0;
+      questions.forEach(q => {
+        totalMarks += q.marks;
+        if (answers[q.id] === q.correct_answer) score += q.marks;
+      });
+
+      const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const status = percentage >= Math.round((quiz.passing_marks / quiz.total_marks) * 100) ? 'pass' : 'fail';
+
+      // Save attempt
+      const attemptRes = await Insforge.DB.insert('quiz_attempts', {
+        quiz_id: quizId,
+        student_id: user.id,
+        score,
+        total_questions: questions.length,
+        percentage,
+        status,
+        time_taken: elapsed,
+        answers: JSON.stringify(answers)
+      });
+
+      App.hideLoading();
+
+      if (quiz.show_results_immediately) {
+        location.href = `quiz-results.html?quiz_id=${quizId}&attempt_id=${attemptRes.data?.[0]?.id || ''}`;
+      } else {
+        await Swal.fire({ icon: 'success', title: 'Quiz Submitted', text: 'Your answers have been recorded. Results will be available soon.', confirmButtonText: 'Go Back' });
+        location.href = 'available-quizzes.html';
+      }
+    }
+  </script>
+</body>
+</html>

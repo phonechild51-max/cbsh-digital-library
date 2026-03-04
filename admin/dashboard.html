@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBSH Admin — Dashboard</title>
+  <link rel="icon" href="../assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <div id="sidebarContainer"></div>
+
+  <!-- Main Content -->
+  <div class="cbsh-main">
+    <div id="topbarContainer"></div>
+
+    <div class="cbsh-content">
+      <!-- Stat Cards Row -->
+      <div class="row g-3 mb-4" id="statCardsRow">
+        <!-- Filled by JS -->
+      </div>
+
+      <!-- Charts Row 1 -->
+      <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>User Registration Trend</span>
+              <span class="badge bg-secondary">Last 30 Days</span>
+            </div>
+            <div class="card-body" style="height:300px;">
+              <canvas id="registrationChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="card">
+            <div class="card-header">Quiz Performance</div>
+            <div class="card-body d-flex align-items-center justify-content-center" style="height:300px;">
+              <canvas id="quizPerfChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row 2 -->
+      <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header">Materials by Subject</div>
+            <div class="card-body" style="height:300px;">
+              <canvas id="materialChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header">Most Active Teachers</div>
+            <div class="card-body" style="height:300px;">
+              <canvas id="teacherChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Recent Activity</span>
+          <a href="activity-logs.html" class="btn btn-sm btn-secondary">View All</a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Details</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="recentActivityBody">
+                <tr><td colspan="5" class="text-center py-4" style="color:var(--text-disabled);">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/insforge.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/theme-toggle.js"></script>
+  <script src="../js/notifications.js"></script>
+
+  <script>
+    // ── Auth Guard ─────────────────────────────────────
+    if (!AuthGuard.init('admin')) throw new Error('Not authorized');
+    App.initLayout('Dashboard', 'admin');
+
+    // ── Chart.js global defaults ───────────────────────
+    Chart.defaults.color = '#C4A882';
+    Chart.defaults.borderColor = '#2A1C0A';
+    Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+    // ── Load Dashboard Data ────────────────────────────
+    (async function loadDashboard() {
+      try {
+        // Fetch all data in parallel
+        const [usersRes, materialsRes, quizzesRes, attemptsRes, logsRes] = await Promise.all([
+          Insforge.DB.query('users'),
+          Insforge.DB.query('materials'),
+          Insforge.DB.query('quizzes'),
+          Insforge.DB.query('quiz_attempts'),
+          Insforge.DB.query('activity_logs', { order: 'created_at.desc', limit: 10 })
+        ]);
+
+        const users = usersRes.data || [];
+        const materials = materialsRes.data || [];
+        const quizzes = quizzesRes.data || [];
+        const attempts = attemptsRes.data || [];
+        const logs = logsRes.data || [];
+
+        const pending = users.filter(u => u.status === 'pending' || u.status === 'email_verified').length;
+        const teachers = users.filter(u => u.role === 'teacher' && u.status === 'approved').length;
+        const students = users.filter(u => u.role === 'student' && u.status === 'approved').length;
+
+        // Stat Cards
+        const stats = [
+          { icon: 'bi-people-fill', color: 'amber', value: users.length, label: 'Total Users' },
+          { icon: 'bi-person-workspace', color: 'blue', value: teachers, label: 'Teachers' },
+          { icon: 'bi-mortarboard-fill', color: 'green', value: students, label: 'Students' },
+          { icon: 'bi-journal-richtext', color: 'amber', value: materials.length, label: 'Materials' },
+          { icon: 'bi-patch-question-fill', color: 'blue', value: quizzes.length, label: 'Quizzes' },
+          { icon: 'bi-pencil-square', color: 'green', value: attempts.length, label: 'Quiz Attempts' },
+          { icon: 'bi-person-plus-fill', color: 'red', value: pending, label: 'Pending Approval', link: 'approve-users.html' },
+          { icon: 'bi-activity', color: 'amber', value: logs.length, label: "Today's Activity" }
+        ];
+
+        document.getElementById('statCardsRow').innerHTML = stats.map((s, i) => `
+          <div class="col-6 col-md-4 col-xl-3">
+            <div class="stat-card animate-fade-in-up stagger-${i + 1}" ${s.link ? `onclick="location.href='${s.link}'" style="cursor:pointer;"` : ''}>
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="stat-icon ${s.color}"><i class="bi ${s.icon}"></i></div>
+                ${s.link && s.value > 0 ? '<span class="badge bg-danger">Action</span>' : ''}
+              </div>
+              <div class="stat-value">${s.value}</div>
+              <div class="stat-label">${s.label}</div>
+            </div>
+          </div>
+        `).join('');
+
+        // ── Registration Trend Chart ───────────────────
+        const last30 = [];
+        for (let i = 29; i >= 0; i--) {
+          const d = new Date(); d.setDate(d.getDate() - i);
+          last30.push(d.toISOString().slice(0, 10));
+        }
+        const teachersByDay = last30.map(d => users.filter(u => u.role === 'teacher' && u.created_at?.startsWith(d)).length);
+        const studentsByDay = last30.map(d => users.filter(u => u.role === 'student' && u.created_at?.startsWith(d)).length);
+
+        new Chart(document.getElementById('registrationChart'), {
+          type: 'line',
+          data: {
+            labels: last30.map(d => d.slice(5)),
+            datasets: [
+              { label: 'Teachers', data: teachersByDay, borderColor: '#2A6DD4', backgroundColor: 'rgba(42,109,212,0.1)', fill: true, tension: 0.4 },
+              { label: 'Students', data: studentsByDay, borderColor: '#D4922A', backgroundColor: 'rgba(212,146,42,0.1)', fill: true, tension: 0.4 }
+            ]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } },
+            scales: { x: { ticks: { maxTicksLimit: 10 } }, y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+          }
+        });
+
+        // ── Quiz Performance Doughnut ──────────────────
+        const passed = attempts.filter(a => a.status === 'pass').length;
+        const failed = attempts.filter(a => a.status === 'fail').length;
+
+        new Chart(document.getElementById('quizPerfChart'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Passed', 'Failed'],
+            datasets: [{ data: [passed || 0, failed || 0], backgroundColor: ['#10B981', '#EF4444'], borderWidth: 0 }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, cutout: '70%',
+            plugins: { legend: { position: 'bottom' } }
+          }
+        });
+
+        // ── Materials by Subject Bar Chart ─────────────
+        const subjectCounts = {};
+        materials.forEach(m => { subjectCounts[m.subject] = (subjectCounts[m.subject] || 0) + 1; });
+
+        new Chart(document.getElementById('materialChart'), {
+          type: 'bar',
+          data: {
+            labels: Object.keys(subjectCounts),
+            datasets: [{ label: 'Materials', data: Object.values(subjectCounts), backgroundColor: '#D4922A', borderRadius: 6 }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+          }
+        });
+
+        // ── Most Active Teachers ───────────────────────
+        const teacherMaterials = {};
+        materials.forEach(m => { teacherMaterials[m.uploaded_by] = (teacherMaterials[m.uploaded_by] || 0) + 1; });
+        const topTeachers = Object.entries(teacherMaterials).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const teacherNames = await Promise.all(
+          topTeachers.map(async ([id]) => {
+            const u = users.find(u => u.id === id);
+            return u?.name || 'Unknown';
+          })
+        );
+
+        new Chart(document.getElementById('teacherChart'), {
+          type: 'bar',
+          data: {
+            labels: teacherNames,
+            datasets: [{ label: 'Uploads', data: topTeachers.map(t => t[1]), backgroundColor: '#2A6DD4', borderRadius: 6 }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+            plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+          }
+        });
+
+        // ── Recent Activity Table ──────────────────────
+        if (logs.length === 0) {
+          document.getElementById('recentActivityBody').innerHTML =
+            '<tr><td colspan="5" class="text-center py-4" style="color:var(--text-disabled);">No activity yet</td></tr>';
+        } else {
+          document.getElementById('recentActivityBody').innerHTML = logs.map(log => {
+            const statusBadge = {
+              success: '<span class="badge bg-success">Success</span>',
+              failed: '<span class="badge bg-danger">Failed</span>',
+              warning: '<span class="badge bg-warning">Warning</span>'
+            };
+            return `<tr>
+              <td style="font-size:0.8125rem;white-space:nowrap;">${App.timeAgo(log.created_at)}</td>
+              <td><span class="fw-500">${App.escapeHtml(log.user_name || '—')}</span>
+                <br><span class="badge bg-secondary">${log.role || '—'}</span></td>
+              <td>${App.escapeHtml(log.action)}</td>
+              <td style="font-size:0.8125rem;color:var(--text-secondary);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${App.escapeHtml(log.details || '—')}</td>
+              <td>${statusBadge[log.status] || log.status}</td>
+            </tr>`;
+          }).join('');
+        }
+
+      } catch (err) {
+        console.error('Dashboard load error:', err);
+        App.showError('Failed to load dashboard data.');
+      }
+    })();
+  </script>
+</body>
+</html>

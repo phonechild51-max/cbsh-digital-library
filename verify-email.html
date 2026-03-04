@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBSH Digital Library — Verify Email</title>
+  <link rel="icon" href="assets/images/cbsh-logo.jpg" type="image/jpeg">
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <style>
+    .otp-inputs { display: flex; gap: 8px; justify-content: center; margin: 1.5rem 0; }
+    .otp-inputs input {
+      width: 48px; height: 56px; text-align: center; font-family: var(--font-mono);
+      font-size: 1.5rem; font-weight: 700; border-radius: 10px;
+      background: var(--bg-input); border: 1px solid var(--border-input); color: var(--text-primary);
+      transition: all 0.2s ease;
+    }
+    .otp-inputs input:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px var(--accent-amber-glow); outline: none; }
+  </style>
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card animate-fade-in-up">
+      <div class="auth-logo">
+        <img src="assets/images/cbsh-logo.jpg" alt="CBSH Logo">
+        <h1>Verify Email</h1>
+        <p>Enter the 6-digit code sent to your email</p>
+      </div>
+
+      <div id="emailDisplay" class="text-center mb-3" style="font-size:0.875rem;color:var(--text-secondary);"></div>
+
+      <form id="verifyForm" novalidate>
+        <div class="otp-inputs" id="otpContainer">
+          <input type="text" maxlength="1" class="otp-digit" data-index="0" inputmode="numeric" autofocus>
+          <input type="text" maxlength="1" class="otp-digit" data-index="1" inputmode="numeric">
+          <input type="text" maxlength="1" class="otp-digit" data-index="2" inputmode="numeric">
+          <input type="text" maxlength="1" class="otp-digit" data-index="3" inputmode="numeric">
+          <input type="text" maxlength="1" class="otp-digit" data-index="4" inputmode="numeric">
+          <input type="text" maxlength="1" class="otp-digit" data-index="5" inputmode="numeric">
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 btn-lg" id="verifyBtn">
+          <span id="verifyBtnText">Verify Email</span>
+          <span id="verifySpinner" class="cbsh-spinner ms-2" style="display:none;"></span>
+        </button>
+      </form>
+
+      <div class="text-center mt-3">
+        <button class="btn btn-sm btn-secondary" id="resendBtn">Resend Code</button>
+      </div>
+
+      <div class="auth-footer">
+        <a href="index.html"><i class="bi bi-arrow-left"></i> Back to Login</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="js/config.js"></script>
+  <script src="js/insforge.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/main.js"></script>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get('email') || '';
+    document.getElementById('emailDisplay').textContent = email ? `Code sent to ${email}` : 'Enter the code from your email';
+
+    // OTP auto-focus logic
+    const digits = document.querySelectorAll('.otp-digit');
+    digits.forEach((input, idx) => {
+      input.addEventListener('input', (e) => {
+        const val = e.target.value.replace(/\D/g, '');
+        e.target.value = val;
+        if (val && idx < 5) digits[idx + 1].focus();
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && idx > 0) digits[idx - 1].focus();
+      });
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasted = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+        pasted.split('').forEach((ch, i) => { if (digits[i]) digits[i].value = ch; });
+        if (pasted.length > 0) digits[Math.min(pasted.length, 5)].focus();
+      });
+    });
+
+    function getOtp() { return Array.from(digits).map(d => d.value).join(''); }
+
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const otp = getOtp();
+      if (otp.length !== 6) { App.showError('Please enter the complete 6-digit code.'); return; }
+
+      const btn = document.getElementById('verifyBtn');
+      btn.disabled = true;
+      document.getElementById('verifyBtnText').textContent = 'Verifying...';
+      document.getElementById('verifySpinner').style.display = 'inline-block';
+
+      const res = await Insforge.Auth.verifyEmail(email, otp);
+      if (res.error) {
+        App.showError(res.error.message || 'Invalid code. Please try again.');
+        btn.disabled = false;
+        document.getElementById('verifyBtnText').textContent = 'Verify Email';
+        document.getElementById('verifySpinner').style.display = 'none';
+        return;
+      }
+
+      // Update user status in our DB
+      if (email) {
+        await Insforge.DB.update('users', { email: `eq.${email}` }, { email_verified: true, status: 'email_verified' });
+      }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Email Verified!',
+        text: 'Your email has been verified. An admin will review your account shortly.',
+        confirmButtonText: 'Go to Login'
+      });
+      window.location.href = 'index.html';
+    });
+
+    document.getElementById('resendBtn').addEventListener('click', async () => {
+      if (!email) { App.showError('No email provided.'); return; }
+      const res = await Insforge.Auth.sendVerificationEmail(email);
+      if (res.error) { App.showError('Failed to resend. Try again later.'); }
+      else { App.showSuccess('Verification code resent!'); }
+    });
+  </script>
+</body>
+</html>

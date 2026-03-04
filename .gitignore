@@ -1,0 +1,16 @@
+# InsForge credentials - NEVER commit
+js/config.js
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp files
+*.tmp
+*.bak
+*.swp

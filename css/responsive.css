@@ -1,0 +1,150 @@
+/* ═══════════════════════════════════════════════════════════
+ *  CBSH Digital Library — Responsive Overrides
+ *  Ensures all panels and pages work on mobile & tablet.
+ * ═══════════════════════════════════════════════════════════ */
+
+/* ── Tablet ──────────────────────────────────────────── */
+@media (max-width: 991.98px) {
+  /* Sidebar collapses behind overlay on tablet */
+  .cbsh-sidebar {
+    transform: translateX(-100%);
+    z-index: 1070;
+    position: fixed;
+  }
+  .cbsh-sidebar.show {
+    transform: translateX(0);
+  }
+  .cbsh-main {
+    margin-left: 0 !important;
+  }
+
+  /* Topbar full width */
+  .cbsh-topbar {
+    left: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Sidebar overlay backdrop */
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 1060;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .sidebar-backdrop.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Stat cards — 2 per row on tablet */
+  .stat-card { padding: 1rem; }
+  .stat-value { font-size: 1.5rem; }
+
+  /* Charts become shorter on tablet */
+  .card-body canvas { max-height: 250px; }
+
+  /* Quiz cards */
+  .quiz-card { padding: 1rem; }
+
+  /* Tag badges wrap */
+  .badge { font-size: 0.6875rem; }
+
+  /* Notification dropdown narrower */
+  .notif-dropdown { width: 320px !important; }
+}
+
+/* ── Mobile ────────────────────────────────────────── */
+@media (max-width: 575.98px) {
+  /* Tighter content padding */
+  .cbsh-content {
+    padding: 1rem !important;
+    padding-top: calc(var(--topbar-height) + 0.75rem) !important;
+  }
+
+  /* Topbar compact */
+  .cbsh-topbar {
+    padding: 0 1rem !important;
+  }
+  .cbsh-topbar .d-flex.align-items-center.gap-3 {
+    gap: 0.5rem !important;
+  }
+
+  /* Stat cards — values smaller */
+  .stat-card { padding: 0.75rem; }
+  .stat-icon { width: 36px; height: 36px; font-size: 1rem; }
+  .stat-value { font-size: 1.25rem; }
+  .stat-label { font-size: 0.625rem; }
+
+  /* Cards */
+  .card { border-radius: 12px; }
+  .card-header { padding: 0.75rem 1rem; font-size: 0.875rem; }
+  .card-body { padding: 0.75rem 1rem; }
+
+  /* Material cards — single column */
+  .material-card { border-radius: 12px; }
+  .material-thumb { height: 100px; }
+  .material-thumb i { font-size: 2rem; }
+  .material-title { font-size: 0.875rem; }
+
+  /* Filter row — stack vertically */
+  .cbsh-search { max-width: 100% !important; }
+  .form-select { max-width: 100% !important; }
+
+  /* Tables — smaller font */
+  .table { font-size: 0.8125rem; }
+  .table th, .table td { padding: 0.5rem; }
+
+  /* Buttons */
+  .btn-lg { font-size: 0.9375rem; padding: 0.625rem 1.5rem; }
+  .btn-sm { font-size: 0.75rem; }
+
+  /* Charts — even shorter on mobile */
+  .card-body canvas { max-height: 200px; }
+
+  /* Quiz taking — smaller timer */
+  .quiz-timer .time { font-size: 1.25rem; }
+  .question-nav button { width: 30px; height: 30px; font-size: 0.6875rem; }
+  .option-btn { padding: 0.625rem 0.75rem; font-size: 0.8125rem; }
+
+  /* Auth pages — tighter layouts */
+  .auth-container {
+    padding: 1rem;
+  }
+  .auth-card {
+    padding: 1.5rem !important;
+    border-radius: 16px;
+  }
+  .auth-card h1 { font-size: 1.5rem; }
+
+  /* Navigation dropdown */
+  .notif-dropdown {
+    width: calc(100vw - 2rem) !important;
+    right: -1rem !important;
+  }
+
+  /* Modal content — tighter on mobile */
+  .modal-dialog { margin: 0.5rem; }
+  .modal-content { border-radius: 16px; }
+
+  /* Empty state icons smaller */
+  .empty-state i { font-size: 2.5rem; }
+  .empty-state h5 { font-size: 1rem; }
+}
+
+/* ── Print Styles ──────────────────────────────────── */
+@media print {
+  .cbsh-sidebar,
+  .cbsh-topbar,
+  .sidebar-backdrop,
+  .notif-dropdown,
+  .btn { display: none !important; }
+
+  .cbsh-main { margin-left: 0 !important; }
+  .cbsh-content { padding: 0 !important; padding-top: 0 !important; }
+
+  .card { border: 1px solid #ddd; box-shadow: none; }
+  body { background: #fff !important; color: #000 !important; }
+}
