@@ -111,8 +111,8 @@
     // Load stats
     (async function loadStats() {
       const [dlRes, bkRes, attRes] = await Promise.all([
-        Insforge.DB.query('downloads', { filters: { student_id: `eq.${user.id}` }, select: 'id' }),
-        Insforge.DB.query('bookmarks', { filters: { student_id: `eq.${user.id}` }, select: 'id' }),
+        Insforge.DB.query('downloads', { filters: { user_id: `eq.${user.id}` }, select: 'id' }),
+        Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}` }, select: 'id' }),
         Insforge.DB.query('quiz_attempts', { filters: { student_id: `eq.${user.id}` } })
       ]);
       const attempts = attRes.data || [];

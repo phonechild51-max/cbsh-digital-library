@@ -240,16 +240,15 @@ const Insforge = (() => {
   const Storage = {
     /**
      * Upload a file using the upload-strategy approach.
-     * @param {File} file - The file object to upload
-     * @param {string} folder - Optional subfolder path
-     * @param {Function} onProgress - Optional progress callback (0-100)
-     * @returns {Object} { data: { key, url, bucket }, error }
+     * Uses XMLHttpRequest for real-time progress tracking.
      */
     async upload(file, folder = '', onProgress = null) {
       const bucket = INSFORGE_CONFIG.storageBucket;
       try {
         // Step 1: Get upload strategy
         const filename = folder ? `${folder}/${file.name}` : file.name;
+        if (onProgress) onProgress(5); // Show we're starting
+
         const strategyRes = await request(`/api/storage/buckets/${bucket}/upload-strategy`, {
           method: 'POST',
           body: JSON.stringify({ filename, contentType: file.type, size: file.size })
@@ -257,26 +256,41 @@ const Insforge = (() => {
 
         if (strategyRes.error) return strategyRes;
         const strategy = strategyRes.data;
-        const objectKey = strategy.key; // Server-assigned key
+        const objectKey = strategy.key;
+        if (onProgress) onProgress(10);
 
-        // Step 2: Upload file based on strategy
+        // Step 2: Upload file with progress tracking via XHR
         if (strategy.method === 'direct') {
           const formData = new FormData();
           formData.append('file', file);
           const uploadUrl = `${INSFORGE_CONFIG.baseUrl}${strategy.uploadUrl}`;
           const token = localStorage.getItem('cbsh_jwt') || INSFORGE_CONFIG.anonKey;
-          const res = await fetch(uploadUrl, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData
+
+          const xhrResult = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener('progress', (e) => {
+              if (e.lengthComputable && onProgress) {
+                const pct = Math.round(10 + (e.loaded / e.total) * 80);
+                onProgress(pct);
+              }
+            });
+            xhr.addEventListener('load', () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try { resolve(JSON.parse(xhr.responseText)); }
+                catch { resolve({}); }
+              } else {
+                try { reject(new Error(JSON.parse(xhr.responseText).message || 'Upload failed')); }
+                catch { reject(new Error('Upload failed with status ' + xhr.status)); }
+              }
+            });
+            xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+            xhr.open('PUT', uploadUrl);
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            xhr.send(formData);
           });
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            return { data: null, error: { message: err.message || 'Upload failed' } };
-          }
-          const data = await res.json();
-          if (onProgress) onProgress(100);
-          return { data: { key: objectKey, bucket, ...data }, error: null };
+
+          if (onProgress) onProgress(95);
+          return { data: { key: objectKey, bucket, ...xhrResult }, error: null };
 
         } else if (strategy.method === 'presigned') {
           const formData = new FormData();
@@ -284,10 +298,28 @@ const Insforge = (() => {
             Object.entries(strategy.fields).forEach(([k, v]) => formData.append(k, v));
           }
           formData.append('file', file);
-          const res = await fetch(strategy.uploadUrl, { method: 'POST', body: formData });
-          if (!res.ok && res.status !== 204) {
-            return { data: null, error: { message: 'File upload to storage failed' } };
-          }
+
+          await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener('progress', (e) => {
+              if (e.lengthComputable && onProgress) {
+                const pct = Math.round(10 + (e.loaded / e.total) * 75);
+                onProgress(pct);
+              }
+            });
+            xhr.addEventListener('load', () => {
+              if (xhr.status >= 200 && xhr.status < 300 || xhr.status === 204) {
+                resolve();
+              } else {
+                reject(new Error('File upload to storage failed (status ' + xhr.status + ')'));
+              }
+            });
+            xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+            xhr.open('POST', strategy.uploadUrl);
+            xhr.send(formData);
+          });
+
+          if (onProgress) onProgress(88);
 
           // Confirm upload if required
           if (strategy.confirmRequired && strategy.confirmUrl) {
@@ -296,11 +328,11 @@ const Insforge = (() => {
               body: JSON.stringify({ size: file.size, contentType: file.type })
             });
             if (confirmRes.error) return confirmRes;
-            if (onProgress) onProgress(100);
+            if (onProgress) onProgress(95);
             return { data: { key: objectKey, bucket, ...confirmRes.data }, error: null };
           }
 
-          if (onProgress) onProgress(100);
+          if (onProgress) onProgress(95);
           return { data: { key: objectKey, bucket }, error: null };
         }
 

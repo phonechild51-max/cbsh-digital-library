@@ -96,8 +96,8 @@
 
     (async function load() {
       const [dlRes, bookRes, attRes, annRes, matRes] = await Promise.all([
-        Insforge.DB.query('downloads', { filters: { student_id: `eq.${user.id}` }, order: 'downloaded_at.desc' }),
-        Insforge.DB.query('bookmarks', { filters: { student_id: `eq.${user.id}` } }),
+        Insforge.DB.query('downloads', { filters: { user_id: `eq.${user.id}` }, order: 'downloaded_at.desc' }),
+        Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}` } }),
         Insforge.DB.query('quiz_attempts', { filters: { student_id: `eq.${user.id}` }, order: 'attempt_date.desc' }),
         Insforge.DB.query('announcements', { filters: { target_role: 'in.(all,students)' }, order: 'created_at.desc', limit: 5 }),
         Insforge.DB.query('materials', { select: 'id,title' })

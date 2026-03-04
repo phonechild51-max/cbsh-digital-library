@@ -42,7 +42,7 @@
 
     (async function load() {
       const [dlRes, matRes] = await Promise.all([
-        Insforge.DB.query('downloads', { filters: { student_id: `eq.${user.id}` }, order: 'downloaded_at.desc' }),
+        Insforge.DB.query('downloads', { filters: { user_id: `eq.${user.id}` }, order: 'downloaded_at.desc' }),
         Insforge.DB.query('materials', { select: 'id,title,subject,file_type,insforge_file_key' })
       ]);
       const downloads = dlRes.data || [];

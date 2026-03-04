@@ -36,7 +36,7 @@
 
     async function loadBookmarks() {
       const [bkRes, matRes] = await Promise.all([
-        Insforge.DB.query('bookmarks', { filters: { student_id: `eq.${user.id}` }, order: 'created_at.desc' }),
+        Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}` }, order: 'created_at.desc' }),
         Insforge.DB.query('materials')
       ]);
       const bookmarks = bkRes.data || [];

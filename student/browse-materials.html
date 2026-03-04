@@ -74,7 +74,7 @@
     (async function load() {
       const [matRes, bkRes] = await Promise.all([
         Insforge.DB.query('materials', { order: 'upload_date.desc' }),
-        Insforge.DB.query('bookmarks', { filters: { student_id: `eq.${user.id}` } })
+        Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}` } })
       ]);
       allMaterials = matRes.data || [];
       bookmarks = (bkRes.data || []).map(b => b.material_id);
@@ -153,12 +153,12 @@
 
     async function toggleBookmark(materialId, btn) {
       if (bookmarks.includes(materialId)) {
-        await Insforge.DB.delete('bookmarks', { student_id: `eq.${user.id}`, material_id: `eq.${materialId}` });
+        await Insforge.DB.delete('bookmarks', { user_id: `eq.${user.id}`, material_id: `eq.${materialId}` });
         bookmarks = bookmarks.filter(id => id !== materialId);
         btn.classList.replace('btn-warning', 'btn-secondary');
         btn.querySelector('i').className = 'bi bi-bookmark-star';
       } else {
-        await Insforge.DB.insert('bookmarks', { student_id: user.id, material_id: materialId });
+        await Insforge.DB.insert('bookmarks', { user_id: user.id, material_id: materialId });
         bookmarks.push(materialId);
         btn.classList.replace('btn-secondary', 'btn-warning');
         btn.querySelector('i').className = 'bi bi-bookmark-star-fill';

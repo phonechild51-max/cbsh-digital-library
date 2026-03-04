@@ -193,7 +193,7 @@
 
         const [matRes, bkRes, uploaderRes] = await Promise.all([
           Insforge.DB.query('materials', { filters: { id: `eq.${materialId}` }, limit: 1 }),
-          Insforge.DB.query('bookmarks', { filters: { student_id: `eq.${user.id}`, material_id: `eq.${materialId}` }, limit: 1 }),
+          Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}`, material_id: `eq.${materialId}` }, limit: 1 }),
           Insforge.DB.query('users', { select: 'id,name' })
         ]);
 
@@ -439,7 +439,7 @@
       const url = dlRes.data?.url || dlRes.data?.downloadUrl;
       if (!url) { App.showError('Download failed.'); return; }
 
-      await Insforge.DB.insert('downloads', { student_id: user.id, material_id: m.id });
+      await Insforge.DB.insert('downloads', { user_id: user.id, material_id: m.id });
       await Insforge.DB.update('materials', { id: `eq.${m.id}` }, { download_count: (m.download_count || 0) + 1 });
 
       window.open(url, '_blank');
@@ -450,12 +450,12 @@
       const m = window._currentMaterial;
       const btn = document.getElementById('bookmarkBtn');
       if (window._isBookmarked) {
-        await Insforge.DB.delete('bookmarks', { student_id: `eq.${user.id}`, material_id: `eq.${m.id}` });
+        await Insforge.DB.delete('bookmarks', { user_id: `eq.${user.id}`, material_id: `eq.${m.id}` });
         window._isBookmarked = false;
         btn.className = 'btn btn-secondary';
         btn.innerHTML = '<i class="bi bi-bookmark-star me-1"></i>Add Bookmark';
       } else {
-        await Insforge.DB.insert('bookmarks', { student_id: user.id, material_id: m.id });
+        await Insforge.DB.insert('bookmarks', { user_id: user.id, material_id: m.id });
         window._isBookmarked = true;
         btn.className = 'btn btn-warning';
         btn.innerHTML = '<i class="bi bi-bookmark-star-fill me-1"></i>Bookmarked';

@@ -173,7 +173,7 @@
         barEl.style.width = '25%';
 
         const uploadRes = await Insforge.Storage.upload(selectedFile, folder, (pct) => {
-          barEl.style.width = Math.min(25 + pct * 0.5, 75) + '%';
+          barEl.style.width = pct + '%';
         });
 
         console.log('[Upload] Storage result:', JSON.stringify(uploadRes));
