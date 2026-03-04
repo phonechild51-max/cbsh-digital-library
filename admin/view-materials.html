@@ -95,9 +95,9 @@
           <td><span class="font-mono">${m.download_count || 0}</span></td>
           <td>
             <div class="d-flex gap-1">
-              <a href="../student/preview-material.html?id=${m.id}&role=admin" class="btn btn-sm btn-secondary" title="Preview">
+              <button class="btn btn-sm btn-secondary" onclick="previewMaterial('${m.id}')" title="Preview">
                 <i class="bi bi-eye"></i>
-              </a>
+              </button>
               <button class="btn btn-sm btn-info" onclick="downloadMaterial('${m.insforge_file_key}')" title="Download">
                 <i class="bi bi-download"></i>
               </button>
@@ -115,6 +115,10 @@
         language: { emptyTable: 'No materials uploaded yet', search: 'Search:' }
       });
     })();
+
+    function previewMaterial(id) {
+      window.location.href = '../student/preview-material.html?id=' + id + '&role=admin';
+    }
 
     async function downloadMaterial(fileKey) {
       if (!fileKey || fileKey === 'undefined' || fileKey === 'null') {
