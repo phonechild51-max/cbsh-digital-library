@@ -182,12 +182,12 @@
           throw new Error(authRes.error.message || 'Registration failed.');
         }
 
-        const authUid = authRes.data?.user?.id;
-        if (!authUid) throw new Error('Failed to get user ID from registration.');
+        // Note: InsForge may not return user object when email verification is required
+        // The insforge_uid will be linked on first login instead
+        const authUid = authRes.data?.user?.id || null;
 
         // Step 2: Insert user record in our users table
         const userRecord = {
-          insforge_uid: authUid,
           name,
           email,
           role,
@@ -196,6 +196,7 @@
           status: 'pending',
           email_verified: true
         };
+        if (authUid) userRecord.insforge_uid = authUid;
 
         const dbRes = await Insforge.DB.insert('users', userRecord);
         if (dbRes.error) {
