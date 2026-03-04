@@ -162,21 +162,32 @@
     const materialId = params.get('id');
     const roleParam = params.get('role') || 'student';
     const validRoles = ['admin', 'teacher', 'student'];
-    const role = validRoles.includes(roleParam) ? roleParam : 'student';
 
-    // Auth guard for the detected role
-    if (!AuthGuard.init(role)) throw new Error('Not authorized');
-    App.initLayout('Preview Material', role);
+    // Auth: use the user's REAL session role (not URL param) so auth works from any folder.
+    // AuthGuard.init(null) means: "just require login, any role is fine."
+    if (!AuthGuard.init(null)) throw new Error('Not authorized');
 
-    // Set back button based on role
+    const user = AuthGuard.getUser();
+    // The true role from session — used for layout and bookmark display
+    const userRole = user?.role || 'student';
+
+    // Use URL param only for the back button destination.
+    // Fall back to userRole if URL param is invalid/missing.
+    const navRole = validRoles.includes(roleParam) ? roleParam : userRole;
+
+    // Build layout with user's REAL role so sidebar links resolve correctly in student/ folder
+    App.initLayout('Preview Material', userRole);
+
+    // Set back button based on the nav role from URL param
     const backLinks = {
       admin: '../admin/view-materials.html',
       teacher: '../teacher/my-materials.html',
       student: 'browse-materials.html'
     };
-    document.getElementById('backBtn').href = backLinks[role];
+    document.getElementById('backBtn').href = backLinks[navRole] || 'browse-materials.html';
 
-    const user = AuthGuard.getUser();
+    // Show bookmark only for students
+    const role = userRole;
 
     if (!materialId) {
       document.getElementById('previewArea').innerHTML = `
