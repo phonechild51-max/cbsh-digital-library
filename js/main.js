@@ -9,86 +9,181 @@ const App = (() => {
   // ── Determine path prefix based on page location ─────
   function getPathPrefix() {
     const path = window.location.pathname;
-    if (path.includes('/admin/') || path.includes('/teacher/') || path.includes('/student/')) {
-      return '../';
+    if (
+      path.includes("/admin/") ||
+      path.includes("/teacher/") ||
+      path.includes("/student/")
+    ) {
+      return "../";
     }
-    return '';
+    return "";
   }
 
   // ── Sidebar Navigation Config ────────────────────────
   const NAV_CONFIG = {
     admin: {
-      title: 'Admin Panel',
+      title: "Admin Panel",
       items: [
-        { section: 'Overview' },
-        { label: 'Dashboard', icon: 'bi-grid-1x2-fill', href: 'dashboard.html' },
-        { section: 'Management' },
-        { label: 'Approve Users', icon: 'bi-person-check-fill', href: 'approve-users.html', badge: 'pending' },
-        { label: 'View Materials', icon: 'bi-journal-richtext', href: 'view-materials.html' },
-        { label: 'View Quizzes', icon: 'bi-patch-question-fill', href: 'view-quizzes.html' },
-        { label: 'Student Tracking', icon: 'bi-bar-chart-line-fill', href: 'student-quiz-tracking.html' },
-        { section: 'System' },
-        { label: 'Activity Logs', icon: 'bi-clock-history', href: 'activity-logs.html' },
-        { label: 'Announcements', icon: 'bi-megaphone-fill', href: 'announcements.html' },
-        { label: 'Reports', icon: 'bi-file-earmark-pdf-fill', href: 'reports.html' },
-        { label: 'Settings', icon: 'bi-gear-fill', href: 'settings.html' }
-      ]
+        { section: "Overview" },
+        {
+          label: "Dashboard",
+          icon: "bi-grid-1x2-fill",
+          href: "dashboard.html",
+        },
+        { section: "Management" },
+        {
+          label: "Approve Users",
+          icon: "bi-person-check-fill",
+          href: "approve-users.html",
+          badge: "pending",
+        },
+        {
+          label: "View Materials",
+          icon: "bi-journal-richtext",
+          href: "view-materials.html",
+        },
+        {
+          label: "View Quizzes",
+          icon: "bi-patch-question-fill",
+          href: "view-quizzes.html",
+        },
+        {
+          label: "Student Tracking",
+          icon: "bi-bar-chart-line-fill",
+          href: "student-quiz-tracking.html",
+        },
+        { section: "System" },
+        {
+          label: "Activity Logs",
+          icon: "bi-clock-history",
+          href: "activity-logs.html",
+        },
+        {
+          label: "Announcements",
+          icon: "bi-megaphone-fill",
+          href: "announcements.html",
+        },
+        {
+          label: "Reports",
+          icon: "bi-file-earmark-pdf-fill",
+          href: "reports.html",
+        },
+        { label: "Settings", icon: "bi-gear-fill", href: "settings.html" },
+      ],
     },
     teacher: {
-      title: 'Teacher Panel',
+      title: "Teacher Panel",
       items: [
-        { section: 'Overview' },
-        { label: 'Dashboard', icon: 'bi-grid-1x2-fill', href: 'dashboard.html' },
-        { section: 'Materials' },
-        { label: 'Upload Material', icon: 'bi-cloud-arrow-up-fill', href: 'upload-material.html' },
-        { label: 'My Materials', icon: 'bi-journal-richtext', href: 'my-materials.html' },
-        { section: 'Quizzes' },
-        { label: 'Create Quiz', icon: 'bi-plus-circle-fill', href: 'create-quiz.html' },
-        { label: 'My Quizzes', icon: 'bi-patch-question-fill', href: 'my-quizzes.html' },
-        { label: 'Quiz Analytics', icon: 'bi-graph-up-arrow', href: 'quiz-analytics.html' },
-        { section: 'Other' },
-        { label: 'Announcements', icon: 'bi-megaphone-fill', href: 'announcements.html' },
-        { label: 'My Profile', icon: 'bi-person-circle', href: 'profile.html' }
-      ]
+        { section: "Overview" },
+        {
+          label: "Dashboard",
+          icon: "bi-grid-1x2-fill",
+          href: "dashboard.html",
+        },
+        { section: "Materials" },
+        {
+          label: "Upload Material",
+          icon: "bi-cloud-arrow-up-fill",
+          href: "upload-material.html",
+        },
+        {
+          label: "My Materials",
+          icon: "bi-journal-richtext",
+          href: "my-materials.html",
+        },
+        { section: "Quizzes" },
+        {
+          label: "Create Quiz",
+          icon: "bi-plus-circle-fill",
+          href: "create-quiz.html",
+        },
+        {
+          label: "My Quizzes",
+          icon: "bi-patch-question-fill",
+          href: "my-quizzes.html",
+        },
+        {
+          label: "Quiz Analytics",
+          icon: "bi-graph-up-arrow",
+          href: "quiz-analytics.html",
+        },
+        { section: "Other" },
+        {
+          label: "Announcements",
+          icon: "bi-megaphone-fill",
+          href: "announcements.html",
+        },
+        { label: "My Profile", icon: "bi-person-circle", href: "profile.html" },
+      ],
     },
     student: {
-      title: 'Student Panel',
+      title: "Student Panel",
       items: [
-        { section: 'Overview' },
-        { label: 'Dashboard', icon: 'bi-grid-1x2-fill', href: 'dashboard.html' },
-        { section: 'Library' },
-        { label: 'Browse Materials', icon: 'bi-search', href: 'browse-materials.html' },
-        { label: 'My Downloads', icon: 'bi-download', href: 'my-downloads.html' },
-        { label: 'Bookmarks', icon: 'bi-bookmark-heart-fill', href: 'bookmarks.html' },
-        { section: 'Quizzes' },
-        { label: 'Available Quizzes', icon: 'bi-patch-question-fill', href: 'available-quizzes.html' },
-        { label: 'Quiz Results', icon: 'bi-trophy-fill', href: 'quiz-results.html' },
-        { section: 'Other' },
-        { label: 'Announcements', icon: 'bi-megaphone-fill', href: 'announcements.html' },
-        { label: 'My Profile', icon: 'bi-person-circle', href: 'profile.html' }
-      ]
-    }
+        { section: "Overview" },
+        {
+          label: "Dashboard",
+          icon: "bi-grid-1x2-fill",
+          href: "dashboard.html",
+        },
+        { section: "Library" },
+        {
+          label: "Browse Materials",
+          icon: "bi-search",
+          href: "browse-materials.html",
+        },
+        {
+          label: "My Downloads",
+          icon: "bi-download",
+          href: "my-downloads.html",
+        },
+        {
+          label: "Bookmarks",
+          icon: "bi-bookmark-heart-fill",
+          href: "bookmarks.html",
+        },
+        { section: "Quizzes" },
+        {
+          label: "Available Quizzes",
+          icon: "bi-patch-question-fill",
+          href: "available-quizzes.html",
+        },
+        {
+          label: "Quiz Results",
+          icon: "bi-trophy-fill",
+          href: "quiz-results.html",
+        },
+        { section: "Other" },
+        {
+          label: "Announcements",
+          icon: "bi-megaphone-fill",
+          href: "announcements.html",
+        },
+        { label: "My Profile", icon: "bi-person-circle", href: "profile.html" },
+      ],
+    },
   };
 
   // ── Build Sidebar HTML ───────────────────────────────
   function buildSidebar(role) {
     const config = NAV_CONFIG[role];
-    if (!config) return '';
+    if (!config) return "";
 
     const user = AuthGuard.getUser();
-    const currentPage = window.location.pathname.split('/').pop();
+    const currentPage = window.location.pathname.split("/").pop();
     const prefix = getPathPrefix();
 
-    let navHtml = '';
-    config.items.forEach(item => {
+    let navHtml = "";
+    config.items.forEach((item) => {
       if (item.section) {
         navHtml += `<li class="sidebar-section-title">${item.section}</li>`;
       } else {
         const isActive = currentPage === item.href;
-        const badgeHtml = item.badge ? `<span class="badge bg-danger ms-auto" id="sidebar-badge-${item.badge}">0</span>` : '';
+        const badgeHtml = item.badge
+          ? `<span class="badge bg-danger ms-auto" id="sidebar-badge-${item.badge}">0</span>`
+          : "";
         navHtml += `
           <li class="nav-item">
-            <a class="nav-link ${isActive ? 'active' : ''}" href="${item.href}">
+            <a class="nav-link ${isActive ? "active" : ""}" href="${item.href}">
               <i class="bi ${item.icon}"></i>
               <span>${item.label}</span>
               ${badgeHtml}
@@ -123,7 +218,8 @@ const App = (() => {
   function buildTopbar(pageTitle) {
     const user = AuthGuard.getUser();
     const prefix = getPathPrefix();
-    const avatarUrl = user?.profile_picture_url || `${prefix}assets/images/default-avatar.png`;
+    const avatarUrl =
+      user?.profile_picture_url || `${prefix}assets/images/default-avatar.png`;
 
     return `
       <header class="cbsh-topbar">
@@ -144,7 +240,7 @@ const App = (() => {
           <div class="dropdown">
             <button class="d-flex align-items-center gap-2 bg-transparent border-0 text-decoration-none dropdown-toggle" type="button" data-bs-toggle="dropdown">
               <img src="${avatarUrl}" alt="avatar" class="user-avatar" onerror="this.src='${prefix}assets/images/default-avatar.png'">
-              <span class="d-none d-md-inline text-secondary" style="font-size:0.875rem;">${user?.name || 'User'}</span>
+              <span class="d-none d-md-inline text-secondary" style="font-size:0.875rem;">${user?.name || "User"}</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
               <li><a class="dropdown-item" href="profile.html"><i class="bi bi-person me-2"></i>Profile</a></li>
@@ -164,13 +260,13 @@ const App = (() => {
    */
   function initLayout(pageTitle, role) {
     // Build & inject sidebar
-    const sidebarContainer = document.getElementById('sidebarContainer');
+    const sidebarContainer = document.getElementById("sidebarContainer");
     if (sidebarContainer) {
       sidebarContainer.innerHTML = buildSidebar(role);
     }
 
     // Build & inject topbar
-    const topbarContainer = document.getElementById('topbarContainer');
+    const topbarContainer = document.getElementById("topbarContainer");
     if (topbarContainer) {
       topbarContainer.innerHTML = buildTopbar(pageTitle);
     }
@@ -179,48 +275,53 @@ const App = (() => {
     setupSidebarToggle();
 
     // Init theme toggle
-    if (typeof ThemeToggle !== 'undefined') {
+    if (typeof ThemeToggle !== "undefined") {
       ThemeToggle.init();
     }
 
+    // Init notification system (bell icon + polling)
+    if (typeof Notifications !== "undefined") {
+      Notifications.init();
+    }
+
     // Load pending counts for admin
-    if (role === 'admin') {
+    if (role === "admin") {
       loadPendingUserCount();
     }
   }
 
   // ── Sidebar Toggle (mobile) ──────────────────────────
   function setupSidebarToggle() {
-    const sidebar = document.getElementById('cbshSidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById("cbshSidebar");
+    const overlay = document.getElementById("sidebarOverlay");
+    const toggle = document.getElementById("sidebarToggle");
 
     if (toggle) {
-      toggle.addEventListener('click', () => {
-        sidebar?.classList.toggle('show');
-        overlay?.classList.toggle('show');
+      toggle.addEventListener("click", () => {
+        sidebar?.classList.toggle("show");
+        overlay?.classList.toggle("show");
       });
     }
 
     if (overlay) {
-      overlay.addEventListener('click', () => {
-        sidebar?.classList.remove('show');
-        overlay?.classList.remove('show');
+      overlay.addEventListener("click", () => {
+        sidebar?.classList.remove("show");
+        overlay?.classList.remove("show");
       });
     }
   }
 
   // ── Load Pending User Count (Admin Badge) ────────────
   async function loadPendingUserCount() {
-    const res = await Insforge.DB.query('users', {
-      filters: { status: 'in.(pending,email_verified)' },
-      select: 'id'
+    const res = await Insforge.DB.query("users", {
+      filters: { status: "in.(pending,email_verified)" },
+      select: "id",
     });
     const count = res.data?.length || 0;
-    const badge = document.getElementById('sidebar-badge-pending');
+    const badge = document.getElementById("sidebar-badge-pending");
     if (badge) {
       badge.textContent = count;
-      badge.style.display = count > 0 ? 'inline-block' : 'none';
+      badge.style.display = count > 0 ? "inline-block" : "none";
     }
   }
 
@@ -230,15 +331,15 @@ const App = (() => {
 
   /** Format date to readable string */
   function formatDate(dateStr, options = {}) {
-    if (!dateStr) return '—';
+    if (!dateStr) return "—";
     const date = new Date(dateStr);
-    const defaults = { year: 'numeric', month: 'short', day: 'numeric' };
-    return date.toLocaleDateString('en-IN', { ...defaults, ...options });
+    const defaults = { year: "numeric", month: "short", day: "numeric" };
+    return date.toLocaleDateString("en-IN", { ...defaults, ...options });
   }
 
   /** Format date to relative time ("2 hours ago") */
   function timeAgo(dateStr) {
-    if (!dateStr) return '—';
+    if (!dateStr) return "—";
     const now = Date.now();
     const past = new Date(dateStr).getTime();
     const diff = now - past;
@@ -248,7 +349,7 @@ const App = (() => {
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (seconds < 60) return 'Just now';
+    if (seconds < 60) return "Just now";
     if (minutes < 60) return `${minutes}m ago`;
     if (hours < 24) return `${hours}h ago`;
     if (days < 7) return `${days}d ago`;
@@ -257,8 +358,8 @@ const App = (() => {
 
   /** Format file size to human-readable */
   function formatFileSize(bytes) {
-    if (!bytes) return '—';
-    const units = ['B', 'KB', 'MB', 'GB'];
+    if (!bytes) return "—";
+    const units = ["B", "KB", "MB", "GB"];
     let i = 0;
     let size = bytes;
     while (size >= 1024 && i < units.length - 1) {
@@ -270,42 +371,48 @@ const App = (() => {
 
   /** Show loading overlay */
   function showLoading() {
-    let overlay = document.getElementById('loadingOverlay');
+    let overlay = document.getElementById("loadingOverlay");
     if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'loadingOverlay';
-      overlay.className = 'loading-overlay';
+      overlay = document.createElement("div");
+      overlay.id = "loadingOverlay";
+      overlay.className = "loading-overlay";
       overlay.innerHTML = '<div class="cbsh-spinner"></div>';
       document.body.appendChild(overlay);
     }
-    overlay.style.display = 'flex';
+    overlay.style.display = "flex";
   }
 
   /** Hide loading overlay */
   function hideLoading() {
-    const overlay = document.getElementById('loadingOverlay');
-    if (overlay) overlay.style.display = 'none';
+    const overlay = document.getElementById("loadingOverlay");
+    if (overlay) overlay.style.display = "none";
   }
 
   /** Show success toast using SweetAlert2 */
-  function showSuccess(message, title = 'Success') {
-    Swal.fire({ icon: 'success', title, text: message, timer: 2500, showConfirmButton: false });
+  function showSuccess(message, title = "Success") {
+    Swal.fire({
+      icon: "success",
+      title,
+      text: message,
+      timer: 2500,
+      showConfirmButton: false,
+    });
   }
 
   /** Show error toast */
-  function showError(message, title = 'Error') {
-    Swal.fire({ icon: 'error', title, text: message });
+  function showError(message, title = "Error") {
+    Swal.fire({ icon: "error", title, text: message });
   }
 
   /** Show confirmation dialog */
-  async function confirm(title, text, confirmText = 'Yes', icon = 'warning') {
+  async function confirm(title, text, confirmText = "Yes", icon = "warning") {
     const result = await Swal.fire({
       icon,
       title,
       text,
       showCancelButton: true,
       confirmButtonText: confirmText,
-      cancelButtonText: 'Cancel'
+      cancelButtonText: "Cancel",
     });
     return result.isConfirmed;
   }
@@ -314,8 +421,12 @@ const App = (() => {
   function populateSubjects(selectId, includeAll = false) {
     const select = document.getElementById(selectId);
     if (!select) return;
-    let html = includeAll ? '<option value="">All Subjects</option>' : '<option value="">Select Subject</option>';
-    SUBJECTS.forEach(s => { html += `<option value="${s}">${s}</option>`; });
+    let html = includeAll
+      ? '<option value="">All Subjects</option>'
+      : '<option value="">Select Subject</option>';
+    SUBJECTS.forEach((s) => {
+      html += `<option value="${s}">${s}</option>`;
+    });
     select.innerHTML = html;
   }
 
@@ -323,7 +434,9 @@ const App = (() => {
   function populateSemesters(selectId, includeAll = false) {
     const select = document.getElementById(selectId);
     if (!select) return;
-    let html = includeAll ? '<option value="">All Semesters</option>' : '<option value="">Select Semester</option>';
+    let html = includeAll
+      ? '<option value="">All Semesters</option>'
+      : '<option value="">Select Semester</option>';
     for (let i = 1; i <= MAX_SEMESTERS; i++) {
       html += `<option value="${i}">Semester ${i}</option>`;
     }
@@ -341,8 +454,8 @@ const App = (() => {
 
   /** Sanitize text for safe DOM insertion */
   function escapeHtml(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
+    if (!str) return "";
+    const div = document.createElement("div");
     div.textContent = str;
     return div.innerHTML;
   }
@@ -363,6 +476,6 @@ const App = (() => {
     populateSemesters,
     debounce,
     escapeHtml,
-    NAV_CONFIG
+    NAV_CONFIG,
   };
 })();

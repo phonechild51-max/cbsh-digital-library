@@ -307,8 +307,48 @@ const AuthGuard = (() => {
     if (ok) {
       initInactivityListeners();
       startTokenRefresh();
+      // Async JWT validation — catches expired tokens without blocking page load
+      validateSession();
     }
     return ok;
+  }
+
+  // ── Async Session Validation ────────────────────────
+
+  /**
+   * Non-blocking server-side JWT check.
+   * If the token is expired/invalid, clears session and redirects to login.
+   */
+  async function validateSession() {
+    try {
+      const res = await Insforge.Auth.getCurrentUser();
+      if (res.error && (res.error.status === 401 || res.error.status === 403)) {
+        console.warn('[Auth] Session invalid — token expired or revoked.');
+        // Try to refresh first
+        const csrf = getCsrfToken();
+        if (csrf) {
+          const refreshRes = await Insforge.Auth.refreshToken(csrf);
+          if (refreshRes.data?.accessToken) {
+            localStorage.setItem(SESSION_KEYS.jwt, refreshRes.data.accessToken);
+            if (refreshRes.data.csrfToken) localStorage.setItem(SESSION_KEYS.csrf, refreshRes.data.csrfToken);
+            console.log('[Auth] Token refreshed successfully.');
+            return; // Token refreshed, session is valid
+          }
+        }
+        // Refresh failed — force logout
+        clearSession();
+        Swal.fire({
+          icon: 'warning',
+          title: 'Session Expired',
+          text: 'Your session has expired. Please log in again.',
+          confirmButtonText: 'OK'
+        }).then(() => {
+          redirectToLogin();
+        });
+      }
+    } catch (e) {
+      console.warn('[Auth] Session validation error (may be offline):', e.message);
+    }
   }
 
   // ── Public API ───────────────────────────────────────

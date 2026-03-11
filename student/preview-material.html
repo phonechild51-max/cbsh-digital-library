@@ -471,7 +471,10 @@
       // Track download (student only)
       if (role === 'student') {
         await Insforge.DB.insert('downloads', { user_id: user.id, material_id: m.id });
-        await Insforge.DB.update('materials', { id: `eq.${m.id}` }, { download_count: (m.download_count || 0) + 1 });
+        // Fetch fresh count to avoid race condition with stale cached value
+        const freshRes = await Insforge.DB.query('materials', { filters: { id: `eq.${m.id}` }, select: 'download_count', limit: 1 });
+        const freshCount = freshRes.data?.[0]?.download_count || 0;
+        await Insforge.DB.update('materials', { id: `eq.${m.id}` }, { download_count: freshCount + 1 });
       }
 
       if (res.data.isBlob) {

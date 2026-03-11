@@ -122,10 +122,10 @@
       try {
         // Fetch all data in parallel
         const [usersRes, materialsRes, quizzesRes, attemptsRes, logsRes] = await Promise.all([
-          Insforge.DB.query('users'),
-          Insforge.DB.query('materials'),
-          Insforge.DB.query('quizzes'),
-          Insforge.DB.query('quiz_attempts'),
+          Insforge.DB.query('users', { select: 'id,name,email,role,status,created_at', limit: 1000 }),
+          Insforge.DB.query('materials', { select: 'id,subject,uploaded_by', limit: 1000 }),
+          Insforge.DB.query('quizzes', { select: 'id', limit: 1000 }),
+          Insforge.DB.query('quiz_attempts', { select: 'id,status', limit: 1000 }),
           Insforge.DB.query('activity_logs', { order: 'created_at.desc', limit: 10 })
         ]);
 

@@ -301,6 +301,7 @@
         if (qRes.error) throw new Error(qRes.error.message);
 
         AuthGuard.logActivity('CREATE_QUIZ', `Created quiz: ${title} (${questions.length} questions, ${status})`);
+        Notifications.create(user.id, `Your quiz "${title}" has been ${status === 'published' ? 'published' : 'saved as draft'}.`, 'success');
 
         App.hideLoading();
         await Swal.fire({

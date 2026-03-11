@@ -137,6 +137,21 @@
       if (res.error) { App.showError('Failed to create announcement.'); return; }
 
       AuthGuard.logActivity('CREATE_ANNOUNCEMENT', `Created: ${title}`);
+
+      // Send notifications to target users (fire and forget)
+      (async () => {
+        try {
+          const roleFilter = target === 'all'
+            ? { status: 'eq.approved' }
+            : { status: 'eq.approved', role: target === 'students' ? 'eq.student' : 'eq.teacher' };
+          const usersRes = await Insforge.DB.query('users', { filters: roleFilter, select: 'id', limit: 500 });
+          const targetUsers = usersRes.data || [];
+          for (const u of targetUsers.slice(0, 100)) {
+            Notifications.create(u.id, `\u{1F4E2} New announcement: ${title}`, priority === 'urgent' ? 'warning' : 'info');
+          }
+        } catch (e) { console.warn('[Announcements] Failed to send notifications:', e); }
+      })();
+
       App.showSuccess('Announcement published!');
       document.getElementById('announceForm').reset();
       loadAnnouncements();

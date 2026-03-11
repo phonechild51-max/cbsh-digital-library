@@ -295,6 +295,7 @@
 
         setProgress(100, 'Complete!');
         AuthGuard.logActivity('UPLOAD_MATERIAL', `Uploaded: ${title} (${subject})`);
+        Notifications.create(user.id, `Your material "${title}" was uploaded successfully.`, 'success');
 
         // ── Show inline success banner (no popup) ──
         setTimeout(() => {

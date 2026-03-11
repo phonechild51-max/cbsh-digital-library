@@ -94,9 +94,9 @@
     (async function loadDashboard() {
       const [matRes, quizRes, attemptsRes, downloadsRes] = await Promise.all([
         Insforge.DB.query('materials', { filters: { uploaded_by: `eq.${user.id}` }, order: 'upload_date.desc' }),
-        Insforge.DB.query('quizzes', { filters: { created_by: `eq.${user.id}` } }),
-        Insforge.DB.query('quiz_attempts'),
-        Insforge.DB.query('downloads')
+        Insforge.DB.query('quizzes', { filters: { created_by: `eq.${user.id}` }, select: 'id' }),
+        Insforge.DB.query('quiz_attempts', { select: 'id,quiz_id', limit: 500 }),
+        Insforge.DB.query('downloads', { select: 'id,material_id,downloaded_at', limit: 500 })
       ]);
 
       const materials = matRes.data || [];
