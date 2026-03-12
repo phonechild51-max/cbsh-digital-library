@@ -233,10 +233,6 @@ const App = (() => {
           <button class="topbar-icon-btn" id="themeToggleBtn" aria-label="Toggle theme">
             <i class="bi bi-moon-fill" id="themeIcon"></i>
           </button>
-          <button class="topbar-icon-btn" id="notificationBtn" aria-label="Notifications">
-            <i class="bi bi-bell-fill"></i>
-            <span class="notification-dot" id="notifDot" style="display:none;"></span>
-          </button>
           <div class="dropdown">
             <button class="d-flex align-items-center gap-2 bg-transparent border-0 text-decoration-none dropdown-toggle" type="button" data-bs-toggle="dropdown">
               <img src="${avatarUrl}" alt="avatar" class="user-avatar" onerror="this.src='${prefix}assets/images/default-avatar.png'">

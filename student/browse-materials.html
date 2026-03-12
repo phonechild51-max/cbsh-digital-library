@@ -195,6 +195,10 @@
         }
         // Track download
         await Insforge.DB.insert('downloads', { user_id: user.id, material_id: materialId });
+        // Increment download_count atomically
+        const freshRes = await Insforge.DB.query('materials', { filters: { id: `eq.${materialId}` }, select: 'download_count', limit: 1 });
+        const freshCount = freshRes.data?.[0]?.download_count || 0;
+        await Insforge.DB.update('materials', { id: `eq.${materialId}` }, { download_count: freshCount + 1 });
         App.showSuccess('Download started!');
       } catch (err) {
         App.showError(err.message || 'Download failed.');

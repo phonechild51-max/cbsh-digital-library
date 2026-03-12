@@ -309,6 +309,8 @@ const AuthGuard = (() => {
       startTokenRefresh();
       // Async JWT validation — catches expired tokens without blocking page load
       validateSession();
+      // Async maintenance mode check — blocks non-admins if enabled
+      checkMaintenanceMode();
     }
     return ok;
   }
@@ -348,6 +350,52 @@ const AuthGuard = (() => {
       }
     } catch (e) {
       console.warn('[Auth] Session validation error (may be offline):', e.message);
+    }
+  }
+
+  // ── Maintenance Mode ─────────────────────────────────
+
+  /**
+   * Fetches the maintenance_mode setting from DB.
+   * If 'on', non-admins are shown a blocking maintenance overlay.
+   * Always resolves (never throws) so it can't break normal page load.
+   */
+  async function checkMaintenanceMode() {
+    try {
+      const role = getRole();
+      if (role === 'admin') return; // Admins always pass through
+
+      const res = await Insforge.DB.query('settings', {
+        filters: { setting_key: 'eq.maintenance_mode' },
+        limit: 1
+      });
+      const setting = res.data?.[0];
+      if (!setting || setting.setting_value !== 'on') return;
+
+      // Maintenance mode is ON — block the page for non-admins
+      const overlay = document.createElement('div');
+      overlay.id = 'maintenanceOverlay';
+      overlay.style.cssText = [
+        'position:fixed', 'inset:0', 'z-index:99999',
+        'background:var(--bg-body,#0f0d0a)',
+        'display:flex', 'flex-direction:column',
+        'align-items:center', 'justify-content:center',
+        'text-align:center', 'padding:2rem'
+      ].join(';');
+      overlay.innerHTML = `
+        <div style="font-size:4rem;margin-bottom:1rem;">&#x1F6E0;&#xFE0F;</div>
+        <h1 style="font-size:1.75rem;font-weight:700;margin-bottom:0.5rem;color:var(--accent-amber,#D4922A);">System Maintenance</h1>
+        <p style="color:var(--text-secondary,#999);max-width:420px;">
+          CBSH Digital Library is currently undergoing maintenance.<br>
+          Please check back shortly.
+        </p>
+        <p style="font-size:0.8125rem;color:var(--text-disabled,#666);margin-top:1.5rem;">— CBSH Administration</p>
+      `;
+      document.body.appendChild(overlay);
+      // Disable all page interaction
+      document.body.style.overflow = 'hidden';
+    } catch (e) {
+      console.warn('[Auth] Maintenance mode check failed (may be offline):', e.message);
     }
   }
 

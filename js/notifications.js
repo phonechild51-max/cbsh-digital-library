@@ -19,24 +19,29 @@ const Notifications = (() => {
     const topbar = document.querySelector('.cbsh-topbar .d-flex.align-items-center.gap-3');
     if (topbar) {
       const bellHtml = `
-        <div class="position-relative" id="notifBellWrapper">
+        <div id="notifBellWrapper">
           <button class="btn btn-sm btn-secondary position-relative" id="notifBellBtn" title="Notifications" onclick="Notifications.toggle()" style="border-radius:10px;">
             <i class="bi bi-bell-fill"></i>
             <span class="badge bg-danger rounded-pill position-absolute" id="notifBadge" style="top:-4px;right:-4px;font-size:0.625rem;display:none;">0</span>
           </button>
-          <div class="notif-dropdown" id="notifDropdown" style="display:none;position:absolute;right:0;top:100%;margin-top:8px;width:360px;max-height:440px;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border-card);border-radius:16px;box-shadow:0 12px 48px rgba(0,0,0,0.3);z-index:1080;">
-            <div class="d-flex justify-content-between align-items-center p-3 border-bottom" style="border-color:var(--border-divider)!important;">
-              <strong style="font-size:0.9375rem;">Notifications</strong>
-              <button class="btn btn-sm btn-secondary" onclick="Notifications.markAllRead()" style="font-size:0.75rem;">Mark all read</button>
-            </div>
-            <div id="notifList"><div class="p-3 text-center" style="color:var(--text-disabled);font-size:0.875rem;">Loading...</div></div>
-          </div>
         </div>`;
 
-      // Insert before the theme toggle
-      const themeBtn = topbar.querySelector('.btn');
-      if (themeBtn) themeBtn.insertAdjacentHTML('beforebegin', bellHtml);
-      else topbar.insertAdjacentHTML('afterbegin', bellHtml);
+      // Append so bell sits on the RIGHT of topbar actions
+      topbar.insertAdjacentHTML('beforeend', bellHtml);
+
+      // Build the dropdown as a BODY-level fixed element so it always renders
+      // above the sidebar regardless of stacking contexts
+      const dd = document.createElement('div');
+      dd.id = 'notifDropdown';
+      dd.style.cssText = 'display:none;position:fixed;width:360px;max-height:440px;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border-card);border-radius:16px;box-shadow:0 12px 48px rgba(0,0,0,0.45);z-index:9990;';
+      dd.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center p-3 border-bottom" style="border-color:var(--border-divider)!important;">
+          <strong style="font-size:0.9375rem;">Notifications</strong>
+          <button class="btn btn-sm btn-secondary" onclick="Notifications.markAllRead()" style="font-size:0.75rem;">Mark all read</button>
+        </div>
+        <div id="notifList"><div class="p-3 text-center" style="color:var(--text-disabled);font-size:0.875rem;">Loading...</div></div>
+      `;
+      document.body.appendChild(dd);
     }
 
     // Close dropdown on outside click
@@ -114,10 +119,25 @@ const Notifications = (() => {
     }).join('');
   }
 
-  // ── Toggle dropdown ─────────────────────────────────
+  // ── Toggle dropdown — anchored via fixed position to bell button ──
   function toggle() {
     const dd = document.getElementById('notifDropdown');
-    if (dd) dd.style.display = dd.style.display === 'none' ? '' : 'none';
+    const btn = document.getElementById('notifBellBtn');
+    if (!dd || !btn) return;
+
+    if (dd.style.display !== 'none') {
+      dd.style.display = 'none';
+      return;
+    }
+
+    // Anchor right edge of dropdown to right edge of bell button
+    const rect = btn.getBoundingClientRect();
+    const dropW = 360;
+    let left = rect.right - dropW;
+    if (left < 8) left = 8; // clamp inside viewport
+    dd.style.top = (rect.bottom + 8) + 'px';
+    dd.style.left = left + 'px';
+    dd.style.display = '';
   }
 
   // ── Mark single notification as read ────────────────

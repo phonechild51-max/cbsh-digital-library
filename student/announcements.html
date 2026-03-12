@@ -42,9 +42,12 @@
         order: 'created_at.desc'
       });
       const items = res.data || [];
+      const now = Date.now();
+      // Filter out expired announcements
+      const active = items.filter(a => !a.expiry_date || new Date(a.expiry_date).getTime() > now);
       const list = document.getElementById('annList');
 
-      if (items.length === 0) {
+      if (active.length === 0) {
         list.innerHTML = '<div class="empty-state"><i class="bi bi-megaphone"></i><h5>No announcements</h5><p>Check back later for updates from your teachers and admin.</p></div>';
         return;
       }
@@ -52,7 +55,7 @@
       const priorityBadge = { normal: 'bg-secondary', important: 'bg-warning', urgent: 'bg-danger' };
       const priorityIcon = { normal: 'bi-info-circle', important: 'bi-exclamation-triangle', urgent: 'bi-exclamation-octagon-fill' };
 
-      list.innerHTML = items.map((a, i) => `
+      list.innerHTML = active.map((a, i) => `
         <div class="d-flex gap-3 p-3 ${i > 0 ? 'border-top' : ''} animate-fade-in-up stagger-${(i % 4) + 1}" style="border-color:var(--border-divider)!important;">
           <div class="stat-icon ${a.priority === 'urgent' ? 'red' : a.priority === 'important' ? 'amber' : 'blue'}" style="flex-shrink:0;">
             <i class="bi ${priorityIcon[a.priority]}"></i>

@@ -61,17 +61,21 @@
   <script src="../js/insforge.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/main.js"></script>
+  <script src="../js/theme-toggle.js"></script>
 
   <script>
-    const user = JSON.parse(localStorage.getItem('cbsh_user'));
-    if (!user) { location.href = '../index.html'; throw new Error('No session'); }
+    // ── Auth Guard (proper role enforcement + session timeout) ──
+    if (!AuthGuard.init('student')) throw new Error('Not authorized');
+    if (typeof ThemeToggle !== 'undefined') ThemeToggle.init();
+    const user = AuthGuard.getUser();
 
     const quizId = new URLSearchParams(window.location.search).get('id');
     let quiz = null, questions = [], answers = {}, currentIndex = 0;
     let timerInterval, startTime, timeRemaining;
 
-    // Prevent leaving page
-    window.addEventListener('beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; });
+    // Named handler so it can be properly removed after submission
+    function beforeUnloadHandler(e) { e.preventDefault(); e.returnValue = ''; }
+    window.addEventListener('beforeunload', beforeUnloadHandler);
 
     (async function init() {
       const [qRes, questRes] = await Promise.all([
@@ -190,7 +194,7 @@
 
     async function doSubmit() {
       clearInterval(timerInterval);
-      window.removeEventListener('beforeunload', () => {});
+      window.removeEventListener('beforeunload', beforeUnloadHandler);
       App.showLoading();
 
       // Calculate score

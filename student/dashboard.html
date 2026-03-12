@@ -99,16 +99,23 @@
         Insforge.DB.query('downloads', { filters: { user_id: `eq.${user.id}` }, order: 'downloaded_at.desc' }),
         Insforge.DB.query('bookmarks', { filters: { user_id: `eq.${user.id}` } }),
         Insforge.DB.query('quiz_attempts', { filters: { student_id: `eq.${user.id}` }, order: 'attempt_date.desc' }),
-        Insforge.DB.query('announcements', { filters: { target_role: 'in.(all,students)' }, order: 'created_at.desc', limit: 5 }),
-        Insforge.DB.query('materials', { select: 'id,title' })
+        Insforge.DB.query('announcements', { filters: { target_role: 'in.(all,students)' }, order: 'created_at.desc', limit: 20 })
       ]);
 
       const downloads = dlRes.data || [];
       const bookmarks = bookRes.data || [];
       const attempts = attRes.data || [];
-      const announcements = annRes.data || [];
+      // Filter expired announcements; keep only 5 most recent active ones
+      const now = Date.now();
+      const announcements = (annRes.data || []).filter(a => !a.expiry_date || new Date(a.expiry_date).getTime() > now).slice(0, 5);
+
+      // Fetch only the materials referenced in downloads (avoids full-table scan)
+      const downloadedMaterialIds = [...new Set(downloads.map(d => d.material_id))];
       const materialsMap = {};
-      (matRes.data || []).forEach(m => materialsMap[m.id] = m.title);
+      if (downloadedMaterialIds.length > 0) {
+        const matRes = await Insforge.DB.query('materials', { filters: { id: `in.(${downloadedMaterialIds.join(',')})` }, select: 'id,title' });
+        (matRes.data || []).forEach(m => materialsMap[m.id] = m.title);
+      }
 
       const passed = attempts.filter(a => a.status === 'pass').length;
       const avgPct = attempts.length > 0 ? (attempts.reduce((s, a) => s + a.percentage, 0) / attempts.length).toFixed(1) : 0;

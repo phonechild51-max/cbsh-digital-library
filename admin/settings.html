@@ -163,15 +163,17 @@
         return { setting_key: key, setting_value: el?.value || '', updated_at: new Date().toISOString() };
       });
 
-      // Upsert each setting
-      for (const s of updates) {
-        const existing = await Insforge.DB.query('settings', { filters: { setting_key: `eq.${s.setting_key}` }, limit: 1 });
-        if (existing.data?.length) {
-          await Insforge.DB.update('settings', { setting_key: `eq.${s.setting_key}` }, s);
+      // Single fetch to discover existing keys, then parallel upsert
+      const existingRes = await Insforge.DB.query('settings');
+      const existingKeys = new Set((existingRes.data || []).map(s => s.setting_key));
+
+      await Promise.all(updates.map(s => {
+        if (existingKeys.has(s.setting_key)) {
+          return Insforge.DB.update('settings', { setting_key: `eq.${s.setting_key}` }, s);
         } else {
-          await Insforge.DB.insert('settings', s);
+          return Insforge.DB.insert('settings', s);
         }
-      }
+      }));
 
       AuthGuard.logActivity('UPDATE_SETTINGS', 'System settings updated');
       App.hideLoading();
