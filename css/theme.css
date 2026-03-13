@@ -1083,13 +1083,21 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-app);
+  background: url('../pics/project 4.png') center center / cover no-repeat fixed;
   padding: 2rem 1rem;
   position: relative;
   overflow: hidden;
 }
 
 .auth-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(13, 17, 23, 0.75);
+  z-index: 0;
+}
+
+.auth-page::after {
   content: "";
   position: absolute;
   top: -50%;
@@ -1099,15 +1107,17 @@ a:hover {
   background:
     radial-gradient(
       circle at 30% 40%,
-      rgba(212, 146, 42, 0.04) 0%,
+      rgba(212, 146, 42, 0.08) 0%,
       transparent 50%
     ),
     radial-gradient(
       circle at 70% 60%,
-      rgba(42, 109, 212, 0.03) 0%,
+      rgba(42, 109, 212, 0.06) 0%,
       transparent 50%
     );
   animation: authBgFloat 20s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
 }
 
 @keyframes authBgFloat {
